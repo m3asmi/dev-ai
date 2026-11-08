@@ -14,7 +14,8 @@ import pytest
 from conftest import sh
 
 ROOT = Path(__file__).resolve().parents[1]
-INSTALL_SCRIPT = ROOT / "scripts" / "install.sh"
+INSTALL_SCRIPT, CODEX_RULES = ROOT / "scripts" / "install.sh", ROOT / "scripts" / "dev-ai.rules"
+ASKED = {f"dev-ai {verb} *": "ask" for verb in ("drop", "clean", "init")}  # opencode, what destroys
 # What releases before 0.6.0 wrote: a user-wide grant, beside the operator's own rules.
 SETTINGS = {"permissions": {"deny": ["Bash(rm:*)"], "allow": ["Bash(ls:*)", "Bash(dev-ai:*)"]}}
 OPENCODE = {"permission": {"bash": {"rm *": "deny", "dev-ai *": "allow"}}}
@@ -43,6 +44,7 @@ def home(repo: Path, tmp_path: Path) -> Path:
     """main with the script and the skill, no tag; a HOME with Claude Code, codex and opencode as a release left it."""
     (repo / "scripts").mkdir()
     shutil.copy(INSTALL_SCRIPT, repo / "scripts" / "install.sh")
+    shutil.copy(CODEX_RULES, repo / "scripts" / "dev-ai.rules")
     for skill in (repo / "docs" / "skill.md", repo / "skills" / "frame-task" / "SKILL.md"):
         skill.parent.mkdir(parents=True), skill.write_text(f"# the skill in {skill.parent.name}\n", encoding="utf-8")
     sh(repo, "git", "add", "scripts", "docs", "skills")
@@ -118,10 +120,15 @@ def test_installing_does_what_it_announced_and_a_second_run_changes_nothing(
     stable, link = tmp_path / "stable", tmp_path / "bin" / "dev-ai"
     assert (stable / "scripts" / "install.sh").is_file(), "the tag is not checked out"
     assert link.is_symlink() and os.readlink(link) == str(stable / "bin" / "dev-ai")
-    for where, name in ((where, name) for where in (".claude", ".agents") for name in ("dev-ai", "frame-task")):
+    for where, name in ((where, name) for where in (".claude", ".agents", ".config/opencode")
+                        for name in ("dev-ai", "frame-task")):
         source = "docs" if name == "dev-ai" else name  # its own file; codex reads ~/.agents/skills (its docs, 09-21)
         assert (home / where / "skills" / name / "SKILL.md").read_text(encoding="utf-8") == f"# the skill in {source}\n"
     assert not (home / ".codex" / "prompts").exists() and not (home / ".codex" / "skills").exists()
+    # codex's rules, read in every project, trusted or not; opencode's: what destroys asked after his `dev-ai *`
+    assert (home / ".codex" / "rules" / "dev-ai.rules").read_bytes() == CODEX_RULES.read_bytes()
+    opencode = json.loads((home / ".config" / "opencode" / "opencode.json").read_text(encoding="utf-8"))
+    assert opencode == {"permission": {"bash": {**OPENCODE["permission"]["bash"], **ASKED}}}
 
     # The operator's settings, linked from his dotfiles: Claude Code's rules added after his own, none changed, the
     # link kept (the owner, 2026-11-04); `drop`, `clean` and `init` still ask.
@@ -130,7 +137,6 @@ def test_installing_does_what_it_announced_and_a_second_run_changes_nothing(
     assert json.loads((home / "dotfiles" / "settings.json").read_text(encoding="utf-8")) == {
         "permissions": {**SETTINGS["permissions"], "allow": [*SETTINGS["permissions"]["allow"], *verbs]},
         "sandbox": {"excludedCommands": ["dev-ai *"]}}
-    assert "opencode" not in first.stdout
     assert not list(repo.glob(".codex/**/*")) and not (repo / ".claude").exists()  # nothing written per repo
 
     before = snapshot(tmp_path)
@@ -179,35 +185,57 @@ def test_what_stands_at_the_command_path_is_never_replaced(repo: Path, home: Pat
     assert os.readlink(command) == str(tmp_path / "stable" / "bin" / "dev-ai")
 
 
-def test_the_installer_deletes_nothing_and_serves_opencode_no_more(repo: Path, home: Path, tmp_path: Path) -> None:
+def test_the_installer_deletes_nothing(repo: Path, home: Path, tmp_path: Path) -> None:
     """What earlier releases left stays, the operator's to remove: removing through a link deleted a shared skill."""
     left = {".claude/commands/dev-check.md": "<!-- written by dev-ai's scripts/install.sh -->\n# dev-ai check\n",
             ".codex/prompts/dev-ai.md": f"Read and follow `{home}/.codex/skills/dev-ai/SKILL.md`, this runner's own\n",
             ".codex/skills/dev-ai/SKILL.md": "# the skill of an earlier release\n",
-            ".config/opencode/skills/dev-ai/SKILL.md": "# the skill of an earlier release\n",
             ".config/opencode/command/dev-ai.md": "# dev-ai\n"}
     for name, text in left.items():
         (home / name).parent.mkdir(parents=True, exist_ok=True)
         (home / name).write_text(text, encoding="utf-8")
-    opencode = snapshot(home / ".config" / "opencode")
+    shared = home / "dotfiles" / "shared.rules"  # his link at our path: written through, his file would change
+    shared.write_text("# his\n", encoding="utf-8")
+    (home / ".codex" / "rules").mkdir(parents=True, exist_ok=True)
+    (home / ".codex" / "rules" / "dev-ai.rules").symlink_to(shared)
 
     result = install(repo, home, tmp_path)
 
     assert result.returncode == 0, result.stderr
-    assert "\n  remove " not in result.stdout and "opencode" not in result.stdout, result.stdout
+    assert "\n  remove " not in result.stdout and shared.read_text(encoding="utf-8") == "# his\n", result.stdout
     assert {name: (home / name).read_text(encoding="utf-8") for name in left} == left
     assert os.readlink(tmp_path / "bin" / "dai-land") == str(tmp_path / "stable" / "bin" / "dev-ai")
-    assert snapshot(home / ".config" / "opencode") == opencode  # installed, and nothing written under its home
-    assert json.loads((home / ".config" / "opencode" / "opencode.json").read_text(encoding="utf-8")) == OPENCODE
+
+
+def test_opencode_asks_what_destroys_and_his_own_rules_stand(repo: Path, home: Path, tmp_path: Path) -> None:
+    """opencode has no sandbox and its last matching rule wins: an ask goes right after the last rule of his that
+    allows the verb, so every later rule of his still wins; his deny, his ask, his own key for a verb stand, and a
+    file of another shape is left, said."""
+    config = home / ".config" / "opencode" / "opencode.json"
+    his, asks = {"dev-ai *": "deny", "dev-ai clean *": "allow", "dev-ai init *": "allow"}, list(reversed(ASKED))
+    yes = "dev-ai clean --yes"  # his deny after a broad allow: it still wins over the ask put before it
+    for state, after in ((his, list(his)),  # drop denied by his `dev-ai *`, clean and init his keys
+                         ({"*": "allow"}, ["*", *asks]),
+                         ({"dev-ai *": "allow", yes: "deny"}, ["dev-ai *", *asks, yes])):
+        config.write_text(json.dumps({"permission": {"bash": state}}), encoding="utf-8")
+        assert install(repo, home, tmp_path, "--yes").returncode == 0
+        bash = json.loads(config.read_text(encoding="utf-8"))["permission"]["bash"]
+        assert list(bash) == after and bash == {**state, **{key: "ask" for key in after if key not in state}}
+    for state in ('{"permission": {"bash": "allow"}}', "{ his own"):
+        config.write_text(state, encoding="utf-8")
+        again = install(repo, home, tmp_path, "--yes")
+        assert again.returncode == 0 and "left as it is" in again.stdout and config.read_text(encoding="utf-8") == state
 
 
 def test_each_part_is_asked_and_a_no_leaves_it_out(repo: Path, home: Path, tmp_path: Path) -> None:
     """Another machine than the owner's: the skill for each harness found, Claude Code's rules and the context tools
     are each asked, and answered no, left out; the command itself is always installed. --yes asks nothing."""
     settings = (home / "dotfiles" / "settings.json").read_text(encoding="utf-8")
-    result = install(repo, home, tmp_path, answers="n\n" * 6)  # two skills for two harnesses, the rules, the tools
-    assert result.returncode == 0 and result.stdout.count("[Y/n]") == 6, result.stdout
+    opencode = snapshot(home / ".config" / "opencode")
+    result = install(repo, home, tmp_path, answers="n\n" * 10)  # 2 skills for 3 harnesses, 3 harnesses' rules, tools
+    assert result.returncode == 0 and result.stdout.count("[Y/n]") == 10, result.stdout
     assert (tmp_path / "bin" / "dev-ai").is_symlink() and "\n  rtk " not in result.stdout
     assert not (home / ".claude" / "skills").exists() and not (home / ".agents").exists()
     assert (home / "dotfiles" / "settings.json").read_text(encoding="utf-8") == settings
+    assert not (home / ".codex" / "rules").exists() and snapshot(home / ".config" / "opencode") == opencode
     assert "[Y/n]" not in install(repo, home, tmp_path, "--yes", "--dry-run").stdout

@@ -1,0 +1,4 @@
+# dev-ai's codex rules, copied to ~/.codex/rules/ by scripts/install.sh: the flow runs outside codex's sandbox
+# unprompted, what destroys is asked; the strictest matching decision wins, so a rule of his that forbids one stands.
+prefix_rule(pattern = ["dev-ai", ["status", "start", "check", "scope-add", "review", "land"]], decision = "allow")
+prefix_rule(pattern = ["dev-ai", ["drop", "clean", "init"]], decision = "prompt")

@@ -90,9 +90,11 @@ installed dev-ai, never by this checkout, and `/dev-ai` (`docs/skill.md`) carrie
 
 - Open the task with `dev-ai start` (author, its model, delivery). Work only inside the worktree it printed.
 - Touch only the task's scope. A file the goal needs joins it with `dev-ai scope-add <path> --reason "…"`.
+- Run each `dev-ai` command bare, from the main checkout: behind `cd …&&`, `env`, a pipe,
+  a redirect or `&`, your harness's rules no longer match it.
 - Run `dev-ai check` before calling the work done. A suite can outlast your shell tool's
-  time limit: run it in the background and read `.dev-ai/tasks/<task>/test.log` in the
-  main checkout. Running it again is always safe.
+  time limit: run it in the background with your harness's own tool and read
+  `.dev-ai/tasks/<task>/test.log` in the main checkout. Running it again is always safe.
 - Unless the patch is descriptive documentation only, run `dev-ai review` beside the check,
   both in the background; confirm or refute each blocking finding with `dev-ai review --resolve`,
   with evidence; fix what is confirmed, then check and review again. A patch touching a
@@ -111,7 +113,8 @@ devai/gitops.py     bounded git calls, exact-patch fingerprint, untracked and ig
 devai/impact.py     what needs a review (all but descriptive docs), the secret deny list
 devai/testgate.py   host test run
 devai/review.py     the one model call: another harness reviews the patch, beside its check; findings resolved
-scripts/install.sh  installs main's tip and the skill, the one entry point; Claude Code's user rules
+scripts/install.sh  installs main's tip and the skill, the one entry point; each harness's user rules
+scripts/dev-ai.rules  codex's rules, copied to ~/.codex/rules/ by the installer
 scripts/clean-worktrees.sh, drop-test-dbs.sh  what `dev-ai clean` runs, per project by arguments; dry run unless --yes
 tests/              test_flow.py, test_review.py, test_install.py, test_cleanup.py (behaviour), test_budget.py
 ```

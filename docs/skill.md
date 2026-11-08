@@ -8,9 +8,10 @@ description: Carry one task through dev-ai to the end in a migrated repository: 
 This is the skill every harness reads; `scripts/install.sh` copies it into each
 one. `dev-ai` contains the work and proves the patch; you drive it from the
 repository's main checkout. Every command runs under your harness's own
-permission rules, the operator's user settings for Claude Code and the rule `dev-ai init`
-writes in that repository for codex, so the flow runs to the end unprompted; `drop` and `init` still ask, and that prompt, not a terminal
-of dev-ai's, is where the operator says yes or no. Never a trust bypass, never a push.
+permission rules, which the installer writes in the operator's user settings, so the flow runs to
+the end unprompted; `drop`, `clean` and `init` still ask, and that prompt, not a terminal
+of dev-ai's, is where the operator says yes or no. Never a trust bypass, never a push. Run each
+`dev-ai` command bare: behind `cd …&&`, `env`, a pipe, a redirect or `&`, no rule matches it.
 
 1. The repository must be migrated: `dev-ai.json` at its root and the "Working
    with dev-ai" note in `AGENTS.md`. Missing: `dev-ai init --test-command "<the
@@ -37,7 +38,7 @@ of dev-ai's, is where the operator says yes or no. Never a trust bypass, never a
    Then `dev-ai check` and, unless the patch is descriptive documentation only,
    `dev-ai review` (step 5), side by side: neither waits for the other, and `land`
    needs both on the same patch. The suite can outlast a shell tool's time limit: run
-   both in the background and read `.dev-ai/tasks/<task>/test.log` in the main
+   both in the background with your harness's own tool, never a trailing `&`, and read `.dev-ai/tasks/<task>/test.log` in the main
    checkout. Checking again is always safe, and each blocker says how to
    recover; `secret_in_patch`: take the file out, never work around it.
 4. Check passed and `needs_review` empty, descriptive documentation only: land
