@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Install dev-ai for daily use: a stable worktree at main's tip, the command on
-# PATH, the skills (dev-ai, frame-task) in every harness, and Claude Code's user rules for six verbs, never `drop`,
-# `clean` nor `init`: a broader rule of the operator's own is his (README, Permissions).
+# PATH, the skills (dev-ai, frame-task) in every harness, and each harness's user rules: six verbs run unprompted,
+# `drop`, `clean` and `init` asked; a broader rule of the operator's own is his (README, Permissions).
 # Installs; --dry-run prints what it would change and changes nothing; --yes asks nothing. Re-runnable.
 set -euo pipefail
 
@@ -66,29 +66,32 @@ else
     if applying; then mkdir -p "$(dirname "$BIN")"; ln -s "$STABLE/bin/dev-ai" "$BIN"; fi
 fi
 
-# 3. The skills, where Claude Code and codex look for their user skills, each asked on its own: an operator
-# may keep his own copy. They come from the stable worktree, like the command itself: a skill read from the
+# 3. The skills and codex's rules, where each harness reads its user's, each asked on its own: an operator may
+# keep his own copy. They come from the stable worktree, like the command itself: a skill read from the
 # checkout being edited would drive every harness from a half-edited file.
 # Asked of the commit, not of $STABLE: on a dry run that worktree does not exist yet, and a
 # dry run that blames the commit for a file it does carry previews a lie.
-install_skill() {  # <home: there, the harness is installed> <label> <where it reads user skills> <skill> <its file>
-    local target="$3/skills/$4/SKILL.md"
+install_file() {  # <home: there, the harness is installed> <label> <what> <where it goes> <its file>
     [ -d "$1" ] || { say "  $2 not installed, skipped"; return 0; }
     git -C "$REPO" cat-file -e "$REV:$5" 2>/dev/null || { say "  $2: $TAG carries no $5, land it on main first"; return 0; }
-    # Compared against the commit, not against $STABLE: on a dry run that worktree still holds
-    # the previous one, and "already current" would hide an upgrade the install would do.
-    if [ -f "$target" ] && git -C "$REPO" show "$REV:$5" | cmp -s - "$target"; then
-        say "  $2 $4 skill already current"
+    # A link of his is never written through (codex, task 004); compared against the commit, not $STABLE (a dry run).
+    if [ -L "$4" ]; then say "  $2 $3: $4 is a link, left as it is: his to update"
+    elif [ -f "$4" ] && git -C "$REPO" show "$REV:$5" | cmp -s - "$4"; then
+        say "  $2 $3 already current"
     else
-        wants "Install the $4 skill for $2?" || { say "  $2 $4 skill skipped"; return 0; }
-        act "copy $TAG's $5 to $target"
-        if applying; then mkdir -p "$(dirname "$target")"; cp "$STABLE/$5" "$target"; fi
+        wants "Install the $3 for $2?" || { say "  $2 $3 skipped"; return 0; }
+        act "copy $TAG's $5 to $4"
+        if applying; then mkdir -p "$(dirname "$4")"; cp "$STABLE/$5" "$4"; fi
     fi
 }
+OPENCODE="$HOME/.config/opencode"  # it reads ~/.claude and ~/.agents too: a copy of its own serves it alone
 for skill in "dev-ai docs/skill.md" "frame-task skills/frame-task/SKILL.md"; do read -r name file <<< "$skill"
-    install_skill "$HOME/.claude" "Claude Code" "$HOME/.claude" "$name" "$file"
-    install_skill "$HOME/.codex" "codex" "$HOME/.agents" "$name" "$file"  # its docs, 2026-09-21: found as $dev-ai
+    install_file "$HOME/.claude" "Claude Code" "$name skill" "$HOME/.claude/skills/$name/SKILL.md" "$file"
+    install_file "$HOME/.codex" "codex" "$name skill" "$HOME/.agents/skills/$name/SKILL.md" "$file"  # its docs
+    install_file "$OPENCODE" "opencode" "$name skill" "$OPENCODE/skills/$name/SKILL.md" "$file"
 done
+# Read in every project, trusted or not, where a project's own rules are not (codex's docs, 2026-11-08).
+install_file "$HOME/.codex" "codex" "dev-ai rules" "$HOME/.codex/rules/dev-ai.rules" scripts/dev-ai.rules
 
 RULES=""  # Claude Code's allow rules for six verbs and its sandbox exclusion (README, Permissions)
 if [ -d "$HOME/.claude" ]; then wants "Add dev-ai's Claude Code rules?" && RULES=1 || say "  Claude Code rules skipped"; fi
@@ -113,6 +116,34 @@ try:  # after his own, none changed; another shape is said, an I/O error fails t
 except (ValueError, AttributeError, TypeError) as error:  # not plain JSON, or not the shape these rules fit
     print(f"  {path} left as it is ({error}): the rules are in the README (Permissions)")
 PY
+
+# opencode has no sandbox: what destroys is asked, right after his last rule allowing it (the last match wins), so
+# `dev-ai *: allow` no longer runs `drop --destroy` unasked and every later rule of his still wins (codex, task 004).
+if [ -d "$OPENCODE" ] && wants "Add dev-ai's opencode rules?"; then
+python3 -I - "$OPENCODE/opencode.json" "$APPLY" <<'PY' || { say "  opencode rules not written, the error above: fix it, then install again"; exit 1; }
+import fnmatch, json, os, sys, tempfile
+path, apply = os.path.realpath(sys.argv[1]), sys.argv[2] == "1"
+try:
+    if os.path.exists(sys.argv[1] + "c"): raise ValueError("an opencode.jsonc stands beside it")  # beside the link
+    data = json.load(open(path, encoding="utf-8")) if os.path.exists(path) else {}
+    held = data.setdefault("permission", {}).setdefault("bash", {})
+    if not isinstance(held, dict): raise TypeError("its bash permission is not a map of patterns")
+    rules, new = list(held.items()), []
+    for key in (f"dev-ai {v} *" for v in ("drop", "clean", "init")):
+        hits = [i for i, (k, _) in enumerate(rules) if fnmatch.fnmatchcase(key[:-1] + "x", k)]
+        if key not in held and (not hits or rules[hits[-1]][1] == "allow"):  # his ask, deny or own key stands
+            rules.insert(hits[-1] + 1 if hits else 0, (key, "ask")); new.append(key)
+    held.clear(); held.update(rules)
+    text = json.dumps(data, indent=2, ensure_ascii=False, allow_nan=False) + "\n"
+    print(f"  {'' if apply else 'would '}add {len(new)} opencode rules to {path}" if new else "  rules already there")
+    if new and apply:
+        fd, copy = tempfile.mkstemp(dir=os.path.dirname(path), prefix=".opencode-dev-ai-")
+        with os.fdopen(fd, "w", encoding="utf-8") as out: out.write(text)
+        os.replace(copy, path)
+except (ValueError, AttributeError, TypeError) as error:
+    print(f"  {path} left as it is ({error}): the rules are in the README (Permissions)")
+PY
+elif [ -d "$OPENCODE" ]; then say "  opencode rules skipped"; fi
 
 # 4. Tools that keep a harness's context small, named when absent with their project's own install command,
 # never run. Measured on the operator's machine, 2026-09-22: rtk keeps 81.9 % of tool output out of context,

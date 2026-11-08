@@ -73,40 +73,9 @@ def _note() -> str:
     return "\n".join(line for line in section.splitlines() if line.startswith(("- ", "  "))) + "\n"
 
 
-VERBS = ("status", "start", "check", "scope-add", "review", "land")  # never `drop`, `clean` nor `init`
-
-
-def _codex_rule(path: Path) -> bool:
-    """A project rule, which codex reads once it trusts the project; `allow` runs those verbs outside its sandbox.
-    Written where nothing stands: a file there is his, or this one, and stays as it is."""
-    if path.exists():
-        return False
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(f'prefix_rule(pattern = ["dev-ai", {json.dumps(list(VERBS))}], decision = "allow")\n',
-                    encoding="utf-8")
-    return True
-
-
-def _grant(root: Path) -> dict[str, str]:
-    """The harnesses' rules for this repository, so the flow runs unprompted; `written` is not `granted`. Claude Code
-    gets none (its trust prompt warned about them), nor opencode (its last matching rule wins: ours undoes a deny)."""
-    report: dict[str, str] = {}
-    for name, write in ((".codex/rules/dev-ai.rules", _codex_rule),):
-        path, created, parts = root / name, not (root / name).exists(), Path(name).parts
-        try:  # a link on the way, `.codex` to the operator's own, would make this rule a user-wide one
-            if any(root.joinpath(*parts[:depth]).is_symlink() for depth in range(1, len(parts) + 1)):
-                raise ValueError("a symlink, and a write would follow it")
-            written = write(path)
-        except (OSError, ValueError) as error:  # not plain JSON, or a write that fails: never a failed init
-            report[name] = f"left as it is ({error}): the rules are in the README (Permissions)"
-            continue
-        report[name] = "rules written" + (f", {_exclude(root, name)}" if created else "") if written else "kept"
-    return report
-
-
 def init(cwd: Path, test_cmd: str, globs: list[str] | None = None) -> dict[str, str]:
     """Prepare a repository once: `dev-ai.json`, its `disposable` globs, the note in `AGENTS.md`, `.dev-ai/`
-    excluded, the harness's rules for this repository. Whatever is already there is kept as it is."""
+    excluded; the harnesses' rules are the installer's, once per user. Whatever is already there is kept."""
     root = gitops.main_root(cwd)
     settings, agents, report = root / "dev-ai.json", root / "AGENTS.md", {}
     existing = agents.read_text(encoding="utf-8") if agents.is_file() else ""
@@ -141,7 +110,7 @@ def init(cwd: Path, test_cmd: str, globs: list[str] | None = None) -> dict[str, 
         agents.write_text(head + NOTE_HEADING + "\n\n" + _note(), encoding="utf-8")
         report["AGENTS.md"] = "note appended" if existing else "created with the note"
     report[".dev-ai/"] = _exclude(root)
-    return {**report, **_grant(root)}
+    return report
 
 
 def _keep_ignored(root: Path, worktree: Path, directory: Path) -> list[str]:

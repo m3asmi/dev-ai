@@ -13,8 +13,8 @@ execute or route models: the harness does that. It keeps four promises. MIT lice
 
 ## Quick start
 
-You need Python 3.10 or later, git, and Claude Code or codex, where the skill goes. The review is read by
-another harness when one is installed (opencode can review), else by yours with another model.
+You need Python 3.10 or later, git, and Claude Code, codex or opencode. The review is read by another
+harness when one is installed, else by yours with another model.
 
 ```
 git clone https://github.com/m3asmi/dev-ai && cd dev-ai
@@ -22,9 +22,11 @@ bash scripts/install.sh          # the command, then asks for skills, rules, too
 cd ~/my-project && dev-ai init --test-command "pytest -q"   # the command that runs your tests
 ```
 
-Then, in your harness, from that repository: `/dev-ai <what you want done>` (`$dev-ai` in codex). The skill
-carries the task through `start`, `check`, `review` and `land`; `docs/howto.md` walks through one. A defect in
-dev-ai: open a GitHub issue with the exact command and the message it printed.
+Then, in your harness, from that repository: `/dev-ai <what you want done>` (`$dev-ai` in codex, `@dev-ai` in
+opencode). The skill carries the task through `start`, `check`, `review` and `land`; `docs/howto.md` walks through
+one. Claude Code reads `AGENTS.md` only where no `CLAUDE.md` stands: a `CLAUDE.md` of yours starts with
+`@AGENTS.md`, or the note `init` wrote goes unread. A defect in dev-ai: open a GitHub issue with the exact command
+and the message it printed.
 
 ## Use
 
@@ -100,21 +102,26 @@ operator's user settings, `~/.claude/settings.json`, where the installer adds th
 a file of another shape left as it is and said, a write that fails ending the install: `"permissions": {"allow": ["Bash(dev-ai check *)", …]}` and
 `"sandbox": {"excludedCommands": ["dev-ai *"]}`, so the reviewer reaches its login and `drop` is not a
 sandboxed command that `autoAllowBashIfSandboxed` runs unasked; `dev-ai` without `*` matches the bare command
-only. `init` writes none for Claude: its trust prompt warned on every repository that held them (the owner,
-2026-11-04). codex, `.codex/rules/dev-ai.rules`, written by `init` where nothing stands: a
-`prefix_rule` that runs those verbs outside its sandbox, read once codex trusts the project; a symlink on the
-way is left as it is. opencode gets none: no sandbox, bash allowed by default, and its last matching rule wins,
-so ours would undo his deny.
+only. codex: `~/.codex/rules/dev-ai.rules`, a copy of `scripts/dev-ai.rules`, read in every project where a
+project's own rules wait for codex to trust it: the six verbs `allow`, outside its sandbox, and `drop`, `clean`,
+`init` `prompt`; its strictest matching rule wins, so a `forbidden` of his stands. opencode, which has no sandbox
+and runs any command no rule asks about: `"dev-ai drop *": "ask"`, `clean` and `init` alike, added to
+`~/.config/opencode/opencode.json` right after his last rule that allows the verb, as its last matching rule wins, so
+every later rule of his still wins; none where his rules ask or deny it, his own key for it kept, an `opencode.jsonc` or another shape left as it is and said. `init` writes no
+rule in a repository: Claude's trust prompt warned on every one that held them (the owner, 2026-11-04), and codex
+read none it did not trust. Whatever the harness, run each `dev-ai` command bare: behind `cd …&&`, `env`, a
+redirect or `&`, no rule matches it, and Claude Code's sandbox keeps a call with a `cd` or a redirect.
 
 ## Install
 
 `bash scripts/install.sh` installs; `--dry-run` prints what it would change and changes nothing. It puts a
 second worktree of this repository at the tip of `main`, links it onto `PATH` as `dev-ai`, copies `docs/skill.md`
-where Claude Code and codex (`~/.agents/skills`, its docs) read skills: `/dev-ai`, `$dev-ai` in codex,
-is the one entry point; beside it `skills/frame-task`, which frames a task before `start`. It deletes nothing: what an earlier release wrote stays where it is,
+where Claude Code, codex (`~/.agents/skills`, its docs) and opencode (`~/.config/opencode/skills`) read skills:
+`/dev-ai`, `$dev-ai` in codex, `@dev-ai` in opencode, is the one entry point; beside it `skills/frame-task`, which
+frames a task before `start`. It deletes nothing: what an earlier release wrote stays where it is,
 the operator's to remove. At the command's path it replaces nothing either: whatever stands there, but the link
-an install wrote, is refused, his to move. It adds Claude Code's rules (Permissions). It names rtk and context-mode when absent,
-with their own install command, and runs neither. The skill for each harness found, the rules and the context tools
+an install wrote, is refused, his to move; a skill or rules file of his that is a link is left, said. It adds each harness's rules (Permissions). It names rtk and context-mode when absent,
+with their own install command, and runs neither. The skill for each harness found, each one's rules and the context tools
 are each asked on stdin, `[Y/n]`: no answer keeps yes, and `--yes` asks nothing. Daily use never runs from the checkout
 being edited: a half-edited `dev-ai` would judge real patches.
 

@@ -20,15 +20,15 @@ dev-ai init --test-command "<the repository's suite>"
 ```
 
 It writes `dev-ai.json`, adds the `Working with dev-ai` note to `AGENTS.md`, and
-keeps `.dev-ai/` out of git. Whatever is already there it keeps and says so. It
-also writes this repository's harness rules, so the flow runs without asking you,
-except `drop` and `init`; your own deny and ask rules still win (README, Permissions).
+keeps `.dev-ai/` out of git. Whatever is already there it keeps and says so. The
+harness rules are the installer's, once in your user settings, so the flow runs without
+asking you, except `drop`, `clean` and `init`; your own deny rules still win (README, Permissions).
 
 ## A task, from your side
 
 You usually type nothing. You tell the agent what you want, it carries the task
-through `/dev-ai`, the one entry point in Claude Code and codex, to the
-end. Your harness asks you only what its rules do not cover (codex asks each time);
+through `/dev-ai` (`$dev-ai` in codex, `@dev-ai` in opencode), the one entry point, to the
+end. Your harness asks you only what its rules do not cover;
 `dev-ai` has no terminal of its own. Run `dev-ai status` yourself whenever you want
 to see where every task stands.
 

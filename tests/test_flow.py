@@ -694,7 +694,8 @@ def test_init_prepares_a_repository_once_and_keeps_what_is_there(
     assert cli.main(["init", "--test-command", "false"], cwd=root) == 0  # a second run changes nothing
     assert {name: (root / name).read_text(encoding="utf-8") for name in before} == before
     printed = capsys.readouterr().out
-    assert printed.count("kept") == 4 and "kept, running `true`" in printed  # not the `false` just typed; 1 rule file
+    assert printed.count("kept") == 3 and "kept, running `true`" in printed  # not the `false` just typed
+    assert not {".codex", ".claude", ".opencode"} & {path.name for path in root.iterdir()}  # the installer's, per user
     assert "none granted" not in printed  # 0.10.0 still printed it, under a report saying rules were written
     (root / "dev-ai.json").write_text('{"review_timeout": 60}', encoding="utf-8")
     assert commands.init(root, "true")["dev-ai.json"] == "kept, but it declares no test_command"
@@ -747,35 +748,6 @@ def test_init_never_writes_through_a_symlink_and_a_mention_is_not_the_heading(tm
     exclude.symlink_to(shared)
     assert commands.init(linked, "true")[".dev-ai/"].startswith("left alone")
     assert shared.read_text(encoding="utf-8").count("\n") == 1  # never written through
-
-
-def test_init_writes_the_rules_of_this_repository_so_the_flow_runs_unprompted(tmp_path: Path) -> None:
-    """The flow runs unprompted, except what destroys: a codex rule of the repository never names `drop`; opencode
-    gets none (its last matching rule wins), nor does Claude Code, whose rules live in the user's settings."""
-    root, local, rules = tmp_path / "plain", ".claude/settings.local.json", ".codex/rules/dev-ai.rules"
-    root.mkdir()
-    sh(root, "git", "init", "-q", "-b", "main")
-    his = json.dumps({"permission": {"bash": {"*": "ask"}}})
-    (root / "opencode.json").write_text(his, encoding="utf-8")
-    report = commands.init(root, "true")
-    assert not (root / ".claude").exists() and local not in report
-    assert ('prefix_rule(pattern = ["dev-ai", ["status", "start", "check", "scope-add", "review", "land"]], '
-            'decision = "allow")') in (root / rules).read_text(encoding="utf-8")
-    assert (root / "opencode.json").read_text(encoding="utf-8") == his and list(report)[-1] == rules
-    assert not (root / ".opencode").exists()
-    assert "written" in report[rules] and "granted" not in " ".join(report.values())
-    sh(root, "git", "check-ignore", "-q", rules)  # created here, so excluded; exit 1, an error, otherwise
-    before = (root / rules).read_text(encoding="utf-8")
-    assert commands.init(root, "true")[rules] == "kept"  # a second run changes nothing
-    assert (root / rules).read_text(encoding="utf-8") == before
-    (root / local).parent.mkdir()
-    (root / local).write_text("{ his own", encoding="utf-8")  # an earlier release's file, or his: never touched
-    commands.init(root, "true")
-    assert (root / local).read_text(encoding="utf-8") == "{ his own"
-    shutil.rmtree(root / ".codex")  # linked to the operator's own, the repository's rule would be a user-wide one
-    (user := tmp_path / "user-codex").mkdir()
-    (root / ".codex").symlink_to(user)
-    assert "left as it is" in commands.init(root, "true")[rules] and not any(user.iterdir())
 
 
 def test_main_root_is_the_checkout_under_a_separate_git_dir_too(tmp_path: Path) -> None:
