@@ -111,7 +111,7 @@ so ours would undo his deny.
 `bash scripts/install.sh` installs; `--dry-run` prints what it would change and changes nothing. It puts a
 second worktree of this repository at the tip of `main`, links it onto `PATH` as `dev-ai`, copies `docs/skill.md`
 where Claude Code and codex (`~/.agents/skills`, its docs) read skills: `/dev-ai`, `$dev-ai` in codex,
-is the one entry point. It deletes nothing: what an earlier release wrote stays where it is,
+is the one entry point; beside it `skills/frame-task`, which frames a task before `start`. It deletes nothing: what an earlier release wrote stays where it is,
 the operator's to remove. At the command's path it replaces nothing either: whatever stands there, but the link
 an install wrote, is refused, his to move. It adds Claude Code's rules (Permissions). It names rtk and context-mode when absent,
 with their own install command, and runs neither. The skill for each harness found, the rules and the context tools

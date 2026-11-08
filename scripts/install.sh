@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Install dev-ai for daily use: a stable worktree at main's tip, the command on
-# PATH, the skill in every harness, and Claude Code's user rules for six verbs, never `drop`,
+# PATH, the skills (dev-ai, frame-task) in every harness, and Claude Code's user rules for six verbs, never `drop`,
 # `clean` nor `init`: a broader rule of the operator's own is his (README, Permissions).
 # Installs; --dry-run prints what it would change and changes nothing; --yes asks nothing. Re-runnable.
 set -euo pipefail
@@ -66,29 +66,29 @@ else
     if applying; then mkdir -p "$(dirname "$BIN")"; ln -s "$STABLE/bin/dev-ai" "$BIN"; fi
 fi
 
-# 3. The skill, where Claude Code and codex look for their user skills. It comes from the
-# stable worktree, like the command itself: a skill read from the checkout being edited
-# would drive every harness from a half-edited file.
-SOURCE="$STABLE/docs/skill.md"
+# 3. The skills, where Claude Code and codex look for their user skills, each asked on its own: an operator
+# may keep his own copy. They come from the stable worktree, like the command itself: a skill read from the
+# checkout being edited would drive every harness from a half-edited file.
 # Asked of the commit, not of $STABLE: on a dry run that worktree does not exist yet, and a
 # dry run that blames the commit for a file it does carry previews a lie.
-released() { git -C "$REPO" cat-file -e "$REV:docs/skill.md" 2>/dev/null; }
-install_skill() {  # <home: there, the harness is installed> <label> [<where it reads user skills, if not home>]
-    local target="${3:-$1}/skills/dev-ai/SKILL.md"
+install_skill() {  # <home: there, the harness is installed> <label> <where it reads user skills> <skill> <its file>
+    local target="$3/skills/$4/SKILL.md"
     [ -d "$1" ] || { say "  $2 not installed, skipped"; return 0; }
-    released || { say "  $2: $TAG carries no docs/skill.md, land it on main first"; return 0; }
+    git -C "$REPO" cat-file -e "$REV:$5" 2>/dev/null || { say "  $2: $TAG carries no $5, land it on main first"; return 0; }
     # Compared against the commit, not against $STABLE: on a dry run that worktree still holds
     # the previous one, and "already current" would hide an upgrade the install would do.
-    if [ -f "$target" ] && git -C "$REPO" show "$REV:docs/skill.md" | cmp -s - "$target"; then
-        say "  $2 skill already current"
+    if [ -f "$target" ] && git -C "$REPO" show "$REV:$5" | cmp -s - "$target"; then
+        say "  $2 $4 skill already current"
     else
-        wants "Install the dev-ai skill for $2?" || { say "  $2 skill skipped"; return 0; }
-        act "copy $TAG's docs/skill.md to $target"
-        if applying; then mkdir -p "$(dirname "$target")"; cp "$SOURCE" "$target"; fi
+        wants "Install the $4 skill for $2?" || { say "  $2 $4 skill skipped"; return 0; }
+        act "copy $TAG's $5 to $target"
+        if applying; then mkdir -p "$(dirname "$target")"; cp "$STABLE/$5" "$target"; fi
     fi
 }
-install_skill "$HOME/.claude" "Claude Code"
-install_skill "$HOME/.codex" "codex" "$HOME/.agents"  # its docs, 2026-09-21: user skills live there, found as $dev-ai
+for skill in "dev-ai docs/skill.md" "frame-task skills/frame-task/SKILL.md"; do read -r name file <<< "$skill"
+    install_skill "$HOME/.claude" "Claude Code" "$HOME/.claude" "$name" "$file"
+    install_skill "$HOME/.codex" "codex" "$HOME/.agents" "$name" "$file"  # its docs, 2026-09-21: found as $dev-ai
+done
 
 RULES=""  # Claude Code's allow rules for six verbs and its sandbox exclusion (README, Permissions)
 if [ -d "$HOME/.claude" ]; then wants "Add dev-ai's Claude Code rules?" && RULES=1 || say "  Claude Code rules skipped"; fi
