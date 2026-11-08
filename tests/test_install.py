@@ -43,9 +43,9 @@ def home(repo: Path, tmp_path: Path) -> Path:
     """main with the script and the skill, no tag; a HOME with Claude Code, codex and opencode as a release left it."""
     (repo / "scripts").mkdir()
     shutil.copy(INSTALL_SCRIPT, repo / "scripts" / "install.sh")
-    (repo / "docs").mkdir()
-    (repo / "docs" / "skill.md").write_text("# the skill\n", encoding="utf-8")
-    sh(repo, "git", "add", "scripts", "docs")
+    for skill in (repo / "docs" / "skill.md", repo / "skills" / "frame-task" / "SKILL.md"):
+        skill.parent.mkdir(parents=True), skill.write_text(f"# the skill in {skill.parent.name}\n", encoding="utf-8")
+    sh(repo, "git", "add", "scripts", "docs", "skills")
     sh(repo, "git", "commit", "-qm", "installer")
     # The checkout must differ from main's tip, or a skill copied from the checkout being edited
     # is indistinguishable from one copied from the commit: the bug would pass unseen.
@@ -118,9 +118,9 @@ def test_installing_does_what_it_announced_and_a_second_run_changes_nothing(
     stable, link = tmp_path / "stable", tmp_path / "bin" / "dev-ai"
     assert (stable / "scripts" / "install.sh").is_file(), "the tag is not checked out"
     assert link.is_symlink() and os.readlink(link) == str(stable / "bin" / "dev-ai")
-    assert (home / ".claude" / "skills" / "dev-ai" / "SKILL.md").read_text(encoding="utf-8") == "# the skill\n"
-    # codex reads its user skills from ~/.agents/skills and deprecates custom prompts (its docs, 2026-09-21).
-    assert (home / ".agents" / "skills" / "dev-ai" / "SKILL.md").read_text(encoding="utf-8") == "# the skill\n"
+    for where, name in ((where, name) for where in (".claude", ".agents") for name in ("dev-ai", "frame-task")):
+        source = "docs" if name == "dev-ai" else name  # its own file; codex reads ~/.agents/skills (its docs, 09-21)
+        assert (home / where / "skills" / name / "SKILL.md").read_text(encoding="utf-8") == f"# the skill in {source}\n"
     assert not (home / ".codex" / "prompts").exists() and not (home / ".codex" / "skills").exists()
 
     # The operator's settings, linked from his dotfiles: Claude Code's rules added after his own, none changed, the
@@ -205,8 +205,8 @@ def test_each_part_is_asked_and_a_no_leaves_it_out(repo: Path, home: Path, tmp_p
     """Another machine than the owner's: the skill for each harness found, Claude Code's rules and the context tools
     are each asked, and answered no, left out; the command itself is always installed. --yes asks nothing."""
     settings = (home / "dotfiles" / "settings.json").read_text(encoding="utf-8")
-    result = install(repo, home, tmp_path, answers="n\n" * 4)
-    assert result.returncode == 0 and result.stdout.count("[Y/n]") == 4, result.stdout
+    result = install(repo, home, tmp_path, answers="n\n" * 6)  # two skills for two harnesses, the rules, the tools
+    assert result.returncode == 0 and result.stdout.count("[Y/n]") == 6, result.stdout
     assert (tmp_path / "bin" / "dev-ai").is_symlink() and "\n  rtk " not in result.stdout
     assert not (home / ".claude" / "skills").exists() and not (home / ".agents").exists()
     assert (home / "dotfiles" / "settings.json").read_text(encoding="utf-8") == settings
