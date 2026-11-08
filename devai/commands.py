@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import json
 import shutil
+import statistics
 import subprocess
+from datetime import datetime
 from fnmatch import fnmatchcase
 from pathlib import Path
 from typing import Any
@@ -86,10 +88,8 @@ def _codex_rule(path: Path) -> bool:
 
 
 def _grant(root: Path) -> dict[str, str]:
-    """The harnesses' rules for this repository, so the flow runs unprompted (the owner, 2026-09-21); any other
-    state left; `written` is not `granted`. Claude Code gets none: its trust prompt warned on every repository about
-    them, and the owner holds them in his user settings (2026-11-04). opencode gets none: it has no sandbox and
-    allows bash by default, and its last matching rule wins, so an `allow` here would undo his deny (task 059)."""
+    """The harnesses' rules for this repository, so the flow runs unprompted; `written` is not `granted`. Claude Code
+    gets none (its trust prompt warned about them), nor opencode (its last matching rule wins: ours undoes a deny)."""
     report: dict[str, str] = {}
     for name, write in ((".codex/rules/dev-ai.rules", _codex_rule),):
         path, created, parts = root / name, not (root / name).exists(), Path(name).parts
@@ -146,8 +146,7 @@ def init(cwd: Path, test_cmd: str, globs: list[str] | None = None) -> dict[str, 
 
 def _keep_ignored(root: Path, worktree: Path, directory: Path) -> list[str]:
     """Before a worktree goes, its ignored files that are not `disposable` move under the task's record: `git worktree
-    remove` deletes them without a word, and a `.env` copied in to run the suite is not regenerable. One reviewer wanted
-    a refusal, the other showed a cache in every checked worktree, so it would fire every time: kept, not asked."""
+    remove` deletes them without a word, and a `.env` copied in to run the suite is not regenerable: kept, not asked."""
     globs = disposable(root)
     kept = [path for path in gitops.ignored_files(worktree)
             if not any(fnmatchcase(f"{worktree.name}/{path}", glob) for glob in globs)]
@@ -159,8 +158,7 @@ def _keep_ignored(root: Path, worktree: Path, directory: Path) -> list[str]:
 
 
 def _read_spec(cwd: Path, spec: str) -> str:
-    """The short contract the reviewer judges against: invariants and decisions, written by the
-    operator or the harness's plan mode. `dev-ai` writes none of it and plans nothing."""
+    """The short contract the reviewer judges against, the operator's or a plan mode's; dev-ai plans nothing."""
     try:
         text = (cwd / spec).read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as error:
@@ -368,8 +366,7 @@ def drop(cwd: Path, slug: str, destroy: bool = False) -> dict[str, Any]:
 
 
 def clean(cwd: Path, apply: bool) -> int:
-    """After merges, the operator's: the landed worktrees, then the databases `test_databases` names (none named: none
-    looked at). Two scripts decide, a dry run until --yes; they replaced an agent's hand list (2026-09-27)."""
+    """After merges: landed worktrees, then the databases `test_databases` names; two scripts, dry until --yes."""
     root, scripts, yes = gitops.main_root(cwd), Path(__file__).resolve().parents[1] / "scripts", ["--yes"] * apply
     under, pattern = (state_dir(root) / "worktrees").resolve(), config(root).get("test_databases")
     base = config(root).get("base") or gitops.current_branch(root)
@@ -456,6 +453,7 @@ def status(cwd: Path) -> list[dict[str, Any]]:
                  and checked.get("base_sha") != gitops.tip(root, base))
         rows.append({"task": directory.name, "number": task.get("number", 0), "goal": task.get("goal", ""),
             "state": state, "check": check, "review": reviewed,
+            "hours": _hours(task.get("created_at"), landed.get("landed_at")),
             "reviewer": (f"{standing.get('reviewer', '?')}:{standing['requested_model'] or 'default'}"
                          if standing else "-"),  # of the review that stands, the one the `review` column reads
             "next": _next(state, check, checked.get("needs_review") or [],
@@ -463,3 +461,17 @@ def status(cwd: Path) -> list[dict[str, Any]]:
                           base if moved else ""),
         })
     return rows
+
+
+def _hours(start: Any, end: Any) -> float | None:  # none for a task merged by hand; a malformed time, none, no crash
+    try:
+        return (datetime.fromisoformat(end[:19]) - datetime.fromisoformat(start[:19])).total_seconds() / 3600
+    except (TypeError, ValueError):  # bookkeeping fails open, as read_json does
+        return None
+
+
+def tally(rows: list[dict[str, Any]]) -> str:  # the line `status` ends with, to track use by
+    n, hours = [row["state"] for row in rows].count, [row["hours"] for row in rows if row["hours"] is not None]
+    return (f"{len(rows)} tasks: {n('merged') + n('committed')} landed, {n('open')} open, {n('dropped')} dropped;"
+            f" median start to landing {round(statistics.median(hours), 1) if hours else '-'} h;"
+            f" {sum(row['goal'].startswith('Fixes-task:') for row in rows)} Fixes-task")

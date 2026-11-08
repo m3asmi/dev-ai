@@ -80,10 +80,11 @@ def _dispatch(args: argparse.Namespace, cwd: Path) -> tuple[int, str | None, dic
               f"worktree: {task.worktree}\nDevelop there, then side by side: dev-ai check, dev-ai review")
         return 0, task.slug, {"delivery": task.delivery}
     if args.command == "status":
-        for row in commands.status(cwd):
+        for row in (rows := commands.status(cwd)):
             number = f"{row['number']:03d}" if row["number"] else "  -"
             print(f"{number} {row['task']:<24} {row['state']:<10} check={row['check']:<6} review={row['review']:<12}"
                   f" by={row['reviewer']:<22} next={row['next']:<16} {row['goal']}")
+        print(commands.tally(rows))
         return 0, None, {}
     if args.command == "init":
         report = commands.init(cwd, args.test_command, args.disposable)
