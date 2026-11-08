@@ -1,0 +1,6 @@
+# A checkout that converts line endings breaks the scripts with a shebang: on the
+# second machine, `bash scripts/install.sh` answered `set: pipefail: invalid option
+# name`, the shell having read `pipefail\r`. Git decides here, not the clone's config.
+*.sh          text eol=lf
+bin/dev-ai    text eol=lf
+hooks/*       text eol=lf

@@ -1,0 +1,11 @@
+#!/usr/bin/env python3
+"""Entry point. Link it onto PATH from a worktree at a tagged commit, never from
+the checkout being edited (README, Install)."""
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from devai.cli import main  # noqa: E402
+
+sys.exit(main())

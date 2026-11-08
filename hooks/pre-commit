@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Enable once with: git config core.hooksPath hooks
+# The suite takes a few seconds and carries the budget; it runs before every commit.
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+git diff --cached --check
+# Git exports GIT_INDEX_FILE and GIT_DIR to its hooks. The suite builds throwaway
+# repositories, which must not inherit them: this repository's first commit
+# failed 19 tests on `.git/index: Not a directory`. Nothing below needs the index.
+unset $(git rev-parse --local-env-vars)
+python3 -m pytest
+if command -v ruff >/dev/null 2>&1; then
+    ruff check devai tests
+fi
