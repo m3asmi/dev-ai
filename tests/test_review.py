@@ -178,7 +178,8 @@ def test_a_task_without_a_spec_gets_a_brief_without_one_but_with_its_dated_decis
     review.resolve(worktree, "fix-answer", 1, "refuted", "the lead decided sudo stays")
     reviewer_says(monkeypatch, WITHDRAWN)
     assert ask(worktree)["verdict"] == "pass"  # a re-examination answers its findings, it judges no new decision:
-    assert commands.status(repo)[0]["review"] != "pass"  # its pass is stale (codex), and a full review follows
+    commands.check(worktree, "fix-answer")  # its pass is stale (codex), and land says why (odoo_ai, 2026-11-08)
+    assert "none stands: a decision was recorded after its pass." in str(pytest.raises(TaskError, land, worktree).value)
     calls = reviewer_says(monkeypatch, PASS)
     assert ask(worktree)["verdict"] == "pass" and "sudo stays" in calls[0][1]
     assert commands.status(repo)[0]["review"] == "pass"
@@ -556,7 +557,7 @@ def test_a_review_recorded_before_findings_carried_evidence_is_not_current_proof
     directory = repo / ".dev-ai/tasks/fix-answer"
     directory.mkdir(parents=True)
     (directory / "review.json").write_text(json.dumps({"patch_sha256": "abc", "verdict": "pass"}), encoding="utf-8")
-    assert review.standing(repo, "fix-answer", {"patch_sha256": "abc"}) == {}
+    assert review.standing(repo, "fix-answer", {"patch_sha256": "abc"}) == {"voided": "none ran"}
 
 
 def test_cli_review_exits_by_verdict_resolves_by_number_and_logs_it(

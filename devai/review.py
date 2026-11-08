@@ -246,7 +246,7 @@ def resolve(cwd: Path, slug: str, index: int, resolution: str, evidence: str) ->
     """One finding of the current patch answered with evidence: `refuted` goes to the reviewer, `confirmed` fails."""
     task = load(root := gitops.main_root(cwd), slug)
     kept = standing(root, slug, patch_of(task, worktree_of(root, task))[0])
-    if not kept:
+    if "voided" in kept:
         raise TaskError(f"no review of the current patch: run `dev-ai review --task {slug}` first.", "review_missing")
     if resolution not in RESOLUTIONS or not evidence.strip() or not 1 <= index <= len(kept["findings"]):
         raise TaskError(f"name a finding from 1 to {len(kept['findings'])} (their order in review.md), its "
