@@ -56,8 +56,7 @@ def interrupted(pgid: int) -> bool:
 # --- start ---------------------------------------------------------------
 
 def test_start_opens_a_branch_and_a_worktree_under_the_state_dir(repo: Path) -> None:
-    """Inside the checkout the harness already lets the agent write to: task 003 of this
-    repository had to be moved there by hand from `../dev-ai.worktrees/`."""
+    """Inside the checkout the harness lets the agent write to: task 003 was moved there by hand from outside."""
     worktree = open_task(repo)
     assert worktree == (repo / ".dev-ai" / "worktrees" / "fix-answer").resolve() and worktree.is_dir()
     assert sh(worktree, "git", "rev-parse", "--abbrev-ref", "HEAD").strip() == "dev-ai/fix-answer"
@@ -149,12 +148,9 @@ def test_a_patch_cannot_weaken_its_own_test_command(repo: Path) -> None:
 
 
 def test_tests_that_outlast_their_timeout_are_not_tests_that_failed(repo: Path) -> None:
-    """Without this the log reads `tests_failed` for a suite that hung, which is a different thing to
-    go and fix, and `test_timeout` is a setting nothing reads (registered 2026-09-20). And the whole
-    process group must end, not the shell alone: a probe of 2026-09-22 saw `sleep` outlive the check
-    and the script's EXIT trap never run, which for Odoo is a server left on its test database. So a
-    30 s sleep behind a one-second ceiling, and a trap writing its marker beside the worktree (inside
-    it, the file would be `patch_moved`): the marker must be there, and the check must not have waited."""
+    """A hung suite is no failed one, and the whole process group ends (2026-09-22: `sleep` outlived the check, its
+    EXIT trap never ran): a 30 s sleep behind a one-second ceiling, its trap's marker written beside the worktree
+    (inside, it would be `patch_moved`), must be there, and the check must not have waited."""
     command = "bash -c \"trap 'touch ../cleaned' EXIT; sleep 30\""
     (repo / "dev-ai.json").write_text(json.dumps({"test_command": command, "test_timeout": 1}), encoding="utf-8")
     sh(repo, "git", "commit", "-qam", "a suite that hangs")
@@ -168,10 +164,8 @@ def test_tests_that_outlast_their_timeout_are_not_tests_that_failed(repo: Path) 
 def test_the_timeout_ends_what_ignores_sigterm_and_bears_a_group_already_gone(
     repo: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The reviews of this fix (codex, 2026-09-22): SIGKILL followed the shell's exit, not the group's, so a
-    descendant ignoring SIGTERM escaped; `killpg` on a group that had just finished raised instead of passing
-    the Ctrl-C on; and a Ctrl-C during the grace skipped the SIGKILL. The sleep below ignores SIGTERM and
-    writes its pid beside the worktree."""
+    """codex, 2026-09-22: a descendant ignoring SIGTERM escaped, `killpg` on a finished group raised, a Ctrl-C
+    during the grace skipped the SIGKILL. The sleep below ignores SIGTERM and writes its pid beside the worktree."""
     monkeypatch.setattr(testgate, "GRACE_S", 0.5)
     command = "bash -c \"trap '' TERM; echo \\$\\$ > ../pid; exec sleep 30\" & wait"
     (repo / "dev-ai.json").write_text(json.dumps({"test_command": command, "test_timeout": 1}), encoding="utf-8")
@@ -521,6 +515,7 @@ def test_drop_with_nothing_to_lose_asks_nothing_keeps_the_ignored_files_that_are
     commands.land(repo, "merged-one", "docs: the answer", merge=True)
     commands.drop(repo, "merged-one")  # already merged and cleaned by land: nothing left to destroy
     assert [row["state"] for row in commands.status(repo)] == ["dropped", "merged"]
+    assert commands.status(repo)[0]["hours"] is None and commands.status(repo)[1]["hours"] >= 0  # landed, timed
     # What the repository declared at init goes too, beside the caches (a Next.js site, 10-14: `.next/` everywhere)
     (repo / "dev-ai.json").write_text('{"test_command": "true", "disposable": ["*/.next/*"]}', encoding="utf-8")
     site = open_task(repo, slug="site", paths=("README.md",))
@@ -576,6 +571,14 @@ def test_status_confronts_the_evidence_with_the_repository_and_names_the_next_st
     commands.check(worktree, "fix-answer")
     set_test_command(repo, "true && true")  # another contract: the pass under the old one is no evidence
     assert commands.status(repo)[0]["check"] == "stale"
+
+
+def test_status_ends_with_one_line_on_the_tasks_on_record() -> None:
+    rows = [{"state": state, "hours": hours, "goal": goal} for state, hours, goal in (
+        ("merged", 1.06, "a"), ("committed", 3.0, "Fixes-task: a: b"), ("open", None, "c"), ("dropped", None, "d"))]
+    assert commands.tally(rows) == "4 tasks: 2 landed, 1 open, 1 dropped; median start to landing 2.0 h; 1 Fixes-task"
+    assert commands.tally([]) == "0 tasks: 0 landed, 0 open, 0 dropped; median start to landing - h; 0 Fixes-task"
+    assert commands._hours("edited by hand", "2026-11-08T10:00:00Z") is None  # one bad record never ends `status`
 
 
 def test_status_reads_a_commit_merged_by_hand_as_merged_with_its_verdicts(repo: Path) -> None:
@@ -747,11 +750,8 @@ def test_init_never_writes_through_a_symlink_and_a_mention_is_not_the_heading(tm
 
 
 def test_init_writes_the_rules_of_this_repository_so_the_flow_runs_unprompted(tmp_path: Path) -> None:
-    """The owner, 2026-09-21: the flow runs unprompted, except what destroys; the rules never name `drop`.
-    2026-10-02: codex asked at every command: a codex rule of the repository. 2026-10-27: opencode is served
-    again and gets no rule: its last matching rule wins, so ours would undo his deny (codex, task 059).
-    2026-11-04: Claude Code's trust prompt warned on every migrated repository about the rules init wrote
-    under `.claude/`; the owner moved them to his user settings, and init writes none for Claude."""
+    """The flow runs unprompted, except what destroys: a codex rule of the repository never names `drop`; opencode
+    gets none (its last matching rule wins), nor does Claude Code, whose rules live in the user's settings."""
     root, local, rules = tmp_path / "plain", ".claude/settings.local.json", ".codex/rules/dev-ai.rules"
     root.mkdir()
     sh(root, "git", "init", "-q", "-b", "main")

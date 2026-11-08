@@ -22,7 +22,7 @@ dev-ai check                     # scope, tests, what needs a review — on the 
 dev-ai review --model gpt-6-sol  # beside the check: another harness reads the exact patch, its model named
 dev-ai review --resolve 1 --resolution refuted --evidence "…"   # each blocking finding
 dev-ai land -m "fix: the answer" --merge   # within the mandate recorded at start
-dev-ai status                    # every task, its evidence confronted with the repository, the next step
+dev-ai status                    # every task, its evidence against the repository, the next step; a last line to track use by
 dev-ai scope-add src/other.py --reason "…"; dev-ai drop <task> [--destroy]   # no path: a dated decision, reviewed with
 dev-ai clean [--yes]             # after merges: lists, then with --yes removes, landed worktrees and test databases
 ```
