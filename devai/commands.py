@@ -251,9 +251,9 @@ def _require_pass(slug: str, reviewed: dict[str, Any], needs: list[str]) -> None
     if verdict == "unavailable":
         raise TaskError(f"the reviewer was unavailable: {reason}", "review_unavailable")
     if verdict != "pass":
-        raise TaskError(f"this patch changes {len(needs)} file(s) that are not descriptive documentation "
-                        f"({', '.join(needs[:3])}{'…' if len(needs) > 3 else ''}) and no review of it is recorded. "
-                        f"Run `dev-ai review --task {slug}`, then land.", "review_missing")
+        raise TaskError(f"{len(needs)} file(s) need a review ({', '.join(needs[:3])}{'…' if len(needs) > 3 else ''}) "
+                        f"and none stands: {reviewed['voided']}. Run `dev-ai review --task {slug}`, then land.",
+                        "review_missing")
 
 
 def land(cwd: Path, slug: str, message: str | None, merge: bool) -> dict[str, Any]:
@@ -276,7 +276,7 @@ def land(cwd: Path, slug: str, message: str | None, merge: bool) -> dict[str, An
     tests = checked.get("tests") or {}
     print(
         f"Landing '{task.label}': {task.goal}\n  files   {', '.join(checked['changed_files'])}\n"
-        f"  review  {summary(reviewed) if reviewed else 'not run: descriptive documentation only'}\n"
+        f"  review  {summary(reviewed) if 'verdict' in reviewed else 'not run: descriptive documentation only'}\n"
         f"  tests   exit {tests.get('exit_code')} in {tests.get('duration_s')} s\n"
         f"  message {message or '(nothing to commit)'}"
         + (f"\n  then    merge into {task.base_ref} and remove the worktree" if merge else "")
@@ -293,8 +293,8 @@ def land(cwd: Path, slug: str, message: str | None, merge: bool) -> dict[str, An
     # who read it and the model asked for (review.log, routine of 2026-09-28); a review naming nobody lands nothing
     record = {"task": slug, "landed_at": now(), "head_sha": gitops.git(worktree, "rev-parse", "HEAD").strip(),
               "patch_sha256": checked["patch_sha256"], "needs_review": needs,
-              "review": reviewed.get("verdict", "not_run"), "reviewer": reviewed["reviewer"] if reviewed else "",
-              "requested_model": reviewed["requested_model"] if reviewed else "", "merged": False, "kept": []}
+              "review": reviewed.get("verdict", "not_run"), "reviewer": reviewed.get("reviewer", ""),
+              "requested_model": reviewed.get("requested_model", ""), "merged": False, "kept": []}
     landing = task_dir(root, slug) / "landing.json"
     if merge:
         gitops.git(root, "merge", "--no-ff", "-m", f"merge {task.branch}: {task.goal}", task.branch)
@@ -424,7 +424,7 @@ def status(cwd: Path) -> list[dict[str, Any]]:
             "state": state, "check": check, "review": reviewed,
             "hours": _hours(task.get("created_at"), landed.get("landed_at")),
             "reviewer": (f"{standing.get('reviewer', '?')}:{standing['requested_model'] or 'default'}"
-                         if standing else "-"),  # of the review that stands, the one the `review` column reads
+                         if "verdict" in standing else "-"),  # the review that stands, read by the `review` column
             "next": _next(state, check, checked.get("needs_review") or [],
                           "refuted" if review.weigh(standing.get("findings") or [])[1] == review.AWAIT else reviewed,
                           base if moved else ""),

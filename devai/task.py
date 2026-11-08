@@ -267,18 +267,18 @@ def decisions(task: Task) -> int:
 
 
 def standing(root: Path, slug: str, patch: dict[str, Any]) -> dict[str, Any]:
-    """The review of this diff, or {}: its fingerprint, on a base that leaves the patch's files as it read them
+    """The review of this diff, or {"voided": why}: its fingerprint, on a base that leaves its files as it read them
     (settings-all-counted, 2026-09-29: read and approved twice over one diff; a conflict kept on the task's side
     keeps the bytes over another). A record from before findings carried evidence (no `requested_model`) is none."""
     recorded = read_json(task_dir(root, slug) / "review.json")
     if "requested_model" not in recorded or recorded.get("patch_sha256") != patch.get("patch_sha256"):
-        return {}
+        return {"voided": "the patch changed since it ran" if recorded.get("requested_model") else "none ran"}
     if recorded.get("verdict") == "pass" and decisions(load(root, slug)) > recorded.get("decisions", 0):
-        return {}  # a pass that never read a decision (codex, task 010); an open or failed finding stays
+        return {"voided": "a decision was recorded after its pass"}  # codex, task 010; a finding stays
     under = recorded.get("base_sha") != patch["base_sha"] and gitops.git(
         root, "diff", "--name-only", "--no-renames", recorded["base_sha"], patch["base_sha"], "--",
         *patch["changed_files"]).strip()
-    return {} if under else recorded
+    return {"voided": "the base moved files of the patch since it ran"} if under else recorded
 
 
 def write_review(directory: Path, result: dict[str, Any]) -> dict[str, Any]:
