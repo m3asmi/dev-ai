@@ -7,8 +7,8 @@ pointer to this file; edit only this one.
 
 `dev-ai` contains AI-assisted development and proves the patch — README's four
 promises — and replaces dev-pipeline for one developer using frontier models.
-Read `README.md` (use), `docs/design.md` (invariants), `docs/roadmap.md` (what is
-next), `docs/plan.md` (why it exists), `docs/howto.md` (how it looks to its owner).
+Read `README.md` (use), `docs/design.md` (invariants), `docs/roadmap.md` (tracking
+your use, what is not planned), `docs/howto.md` (one task, step by step).
 
 ## The rule that outranks the others: the budget
 
@@ -24,12 +24,12 @@ next), `docs/plan.md` (why it exists), `docs/howto.md` (how it looks to its owne
 Adding means removing. The limits no longer move (the owner moved them once more for
 opencode, 2026-10-27): a need that does not fit removes something first, or waits.
 
-**Stop criterion** (from `docs/plan.md`): a limit exceeded twice, or more than one
+**Stop criterion**: a limit exceeded twice, or more than one
 fix commit to this tool per task delivered with it, and work here stops.
 
 ## Mistakes not to repeat
 
-dev-pipeline's, measured on 2026-09-17 (details in `docs/plan.md`).
+dev-pipeline's, the larger tool dev-ai replaced, measured on 2026-09-17.
 
 | Mistake | Evidence | Here |
 |---|---|---|

@@ -11,6 +11,21 @@ execute or route models: the harness does that. It keeps four promises. MIT lice
 | The patch is tested | the host runs the repository's own test command on the exact patch |
 | No change of behaviour lands unread | anything but descriptive documentation needs one review by another harness, its blocking findings confirmed or refuted with evidence |
 
+## Quick start
+
+You need Python 3.10 or later, git, and Claude Code or codex, where the skill goes. The review is read by
+another harness when one is installed (opencode can review), else by yours with another model.
+
+```
+git clone https://github.com/m3asmi/dev-ai && cd dev-ai
+bash scripts/install.sh          # the command, then asks for skills, rules, tools; --dry-run changes nothing
+cd ~/my-project && dev-ai init --test-command "pytest -q"   # the command that runs your tests
+```
+
+Then, in your harness, from that repository: `/dev-ai <what you want done>` (`$dev-ai` in codex). The skill
+carries the task through `start`, `check`, `review` and `land`; `docs/howto.md` walks through one. A defect in
+dev-ai: open a GitHub issue with the exact command and the message it printed.
+
 ## Use
 
 ```
@@ -129,6 +144,6 @@ per task, and `log.jsonl`, one row per command with its time, outcome, tool
 version and, when blocked, the kind of blocker. Preparation, run and waiting
 times fall out of those rows, and so does which check ever fired. Formats,
 invariants and the threat model: `docs/design.md`. The budget, enforced as tests:
-`AGENTS.md`. What was delivered, the bench, then 1.0: `docs/roadmap.md`. Measures name
+`AGENTS.md`. Tracking your own use, and what is not planned: `docs/roadmap.md`. Measures name
 repositories by role: *the bench* is the Odoo addons repository dev-ai was
 measured on first; the others are a localisation repository and a Next.js site.

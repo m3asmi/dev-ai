@@ -11,8 +11,7 @@
 Everything absent from this tool follows from that table. Measured on 53 bench
 tasks under dev-pipeline (2026-09-17): its signed-provenance apparatus caught no
 model fault; cross-model review caught at least seven serious defects that
-passing tests had missed; the council changed 0 of 22 outcomes. Details in
-`docs/plan.md`.
+passing tests had missed; the council changed 0 of 22 outcomes.
 
 ## Flow and state
 
