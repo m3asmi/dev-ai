@@ -50,9 +50,8 @@ against the code, shows it wrong; else maintain it. One JSON object, no prose, n
 
 
 def _argv(reviewer: str, worktree: Path, answer: Path, model: str, effort: str) -> list[str]:
-    """Flags of `codex exec` 0.163.0, `claude` 2.1.311, `opencode run` 1.18.31: read-only, no MCP server, plugin or
-    app, no bypass, brief on stdin, model, effort named. opencode has no read-only flag: its plan agent denies edits,
-    READ_ONLY the rest, and without --auto `run` rejects whatever asks; its answer is its stdout."""
+    """Flags of `codex exec` 0.163.0, `claude` 2.1.311, `opencode run` 1.18.31 (2.x: _spawn): read-only, no MCP, no
+    bypass, brief on stdin, model and effort named; opencode's plan agent and READ_ONLY deny writes, stdout answers."""
     if reviewer == "opencode":
         return ["opencode", "run", "--agent", "plan", "--dir", str(worktree), "-m", model, "--variant", effort]
     if reviewer == "codex":  # each MCP server is turned off by _spawn, which lists them
@@ -65,7 +64,10 @@ def _argv(reviewer: str, worktree: Path, answer: Path, model: str, effort: str) 
 def _spawn(argv: list[str], brief: str, cwd: Path, timeout_s: int) -> subprocess.CompletedProcess[str]:
     """The process calls of a review, codex's list of MCP servers first. Tests replace it."""
     env = {key: val for key, val in os.environ.items() if key != "ANTHROPIC_API_KEY"}  # the login, never the key
-    env["OPENCODE_CONFIG_CONTENT"] = READ_ONLY  # read after the project's config: opencode's reviewer writes nothing
+    env["OPENCODE_CONFIG_CONTENT"], env["PWD"] = READ_ONLY, str(cwd)  # after a project's config; 2.x's directory
+    probe = argv[0] == "opencode" and subprocess.run([argv[0], "-v"], cwd=cwd, env=env, capture_output=True, timeout=9)
+    if probe and b"v2." in probe.stdout:  # the version asked under the review's own env and directory (codex, 005)
+        argv[4:] = ["--standalone", "-m", f"{argv[7]}#{argv[9]}"]  # 2.2.6: no --dir nor --variant (2026-11-08)
     if argv[0] == "codex":  # ctx_execute ran the patch it reviewed (an operations repository, 2026-10-27)
         out = subprocess.run(["codex", *QUIET, "mcp", "list", "--json"], cwd=cwd, capture_output=True, check=True,
                              timeout=timeout_s)  # a list of servers, else `+ []` below raises TypeError
@@ -154,8 +156,7 @@ def _independent(task: Task, reviewer: str, model: str) -> None:
     """Another harness, or the author's naming another model than the recorded one (the owner, 2026-09-20). A model
     is named every time (2026-09-29): opencode's free default passed the bench's task-072 and 089 with no finding."""
     if not model:
-        raise TaskError(f"`{reviewer}` reviews with which model? Name one with --model: a harness's default can "
-                        "be a free model, and nobody chose it.", "no_model")
+        raise TaskError(f"`{reviewer}` reviews with which model? Name one with --model, never a default.", "no_model")
     if task.author_model and model.rsplit("/", 1)[-1] == task.author_model.rsplit("/", 1)[-1]:
         raise TaskError(f"`{model}` is the author's own model: name another with --model.", "same_reviewer")
     if reviewer == task.author and not task.author_model:
@@ -246,8 +247,7 @@ def resolve(cwd: Path, slug: str, index: int, resolution: str, evidence: str) ->
     task = load(root := gitops.main_root(cwd), slug)
     kept = standing(root, slug, patch_of(task, worktree_of(root, task))[0])
     if not kept:
-        raise TaskError(f"no review of the current patch to resolve. Run `dev-ai review --task {slug}` first.",
-                        "review_missing")
+        raise TaskError(f"no review of the current patch: run `dev-ai review --task {slug}` first.", "review_missing")
     if resolution not in RESOLUTIONS or not evidence.strip() or not 1 <= index <= len(kept["findings"]):
         raise TaskError(f"name a finding from 1 to {len(kept['findings'])} (their order in review.md), its "
                         "--resolution confirmed|refuted and the --evidence that decides it: a resolution without "

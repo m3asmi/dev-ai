@@ -33,9 +33,8 @@ def reviewable_task(repo: Path, author: str = "claude", spec: str | None = None)
     return worktree
 
 
-def reviewer_says(
-    monkeypatch: pytest.MonkeyPatch, answer: Any, returncode: int = 0, stderr: str = ""
-) -> list[tuple[list[str], str]]:
+def reviewer_says(monkeypatch: pytest.MonkeyPatch, answer: Any, returncode: int = 0, stderr: str = ""
+                  ) -> list[tuple[list[str], str]]:
     """Replace the one process call that reaches a model."""
     calls: list[tuple[list[str], str]] = []
 
@@ -67,7 +66,14 @@ def test_the_reviewer_runs_on_the_harness_login_never_on_an_api_key(
     "not the API key, the session". A fake command stands for the CLI; the rest of the environment stays."""
     monkeypatch.setenv("ANTHROPIC_API_KEY", "placeholder-for-the-test")
     monkeypatch.setenv("SOME_OTHER_VARIABLE", "kept")
-    seen = review._spawn(["env"], "", tmp_path, 10).stdout
+    (fake := tmp_path / "opencode").write_text(  # its version only to a probe run under the review's env
+        '#!/bin/sh\n[ "$1" = -v ] && exec echo "${OPENCODE_CONFIG_CONTENT:+$IS}"\necho "$@"; env\n')
+    fake.chmod(0o755)
+    monkeypatch.setenv("PATH", str(tmp_path), prepend=":")  # 2.x: no --dir nor --variant, its directory from PWD
+    for version, tail in (("1.18.31", f"--dir {tmp_path} -m m --variant high"), ("v2.2.6", "--standalone -m m#high")):
+        monkeypatch.setenv("IS", version)
+        seen = review._spawn(review._argv("opencode", tmp_path, tmp_path, "m", "high"), "", tmp_path, 9).stdout
+        assert seen.startswith(f"run --agent plan {tail}\n") and f"\nPWD={tmp_path}\n" in seen
     assert "ANTHROPIC_API_KEY" not in seen and "SOME_OTHER_VARIABLE=kept" in seen
     # opencode has no read-only flag: its config, read after the project's, denies what writes or reaches out
     config = json.loads(next(line for line in seen.splitlines() if line.startswith("OPENCODE_CONFIG_CONTENT="))[24:])
@@ -99,10 +105,8 @@ def test_the_codex_reviewer_runs_with_each_mcp_server_off(tmp_path: Path, monkey
     assert "--disable plugins --disable apps" in ran
 
 
-@pytest.mark.parametrize(
-    ("author", "reviewer", "read_only"),
-    [("claude", "codex", "read-only"), ("codex", "claude", "plan"), ("human", "codex", "read-only")],
-)
+@pytest.mark.parametrize(("author", "reviewer", "read_only"),
+    [("claude", "codex", "read-only"), ("codex", "claude", "plan"), ("human", "codex", "read-only")])
 def test_the_other_harness_reviews_the_checked_patch_read_only(
     repo: Path, monkeypatch: pytest.MonkeyPatch, author: str, reviewer: str, read_only: str) -> None:
     worktree = reviewable_task(repo, author)
@@ -224,8 +228,7 @@ def test_a_review_names_its_model_and_opencode_reviews_read_only(repo: Path, mon
     assert json.loads((repo / ".dev-ai/tasks/fix-answer/review.json").read_text(encoding="utf-8"))["verdict"] == "pass"
 
 
-def test_a_review_recorded_before_models_were_named_still_stands(
-    repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_review_recorded_before_models_were_named_still_stands(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The evidence is bound to the patch, not to the rule of the day: a task in flight, passed by a
     reviewer nobody named a model for, lands as it would have."""
     worktree = reviewable_task(repo)
@@ -282,9 +285,7 @@ def test_a_confirmed_blocker_fails_the_patch_and_resolving_needs_the_current_pat
     assert none.value.kind == "review_missing"
 
 
-@pytest.mark.parametrize(
-    ("answer", "returncode"),
-    [
+@pytest.mark.parametrize(("answer", "returncode"), [
         ("It looks fine to me.", 0),
         (PASS, 1),  # a provider error with a plausible answer is still no review
         ({"verdict": "pass"}, 0),
@@ -322,8 +323,7 @@ def test_a_retry_keeps_the_run_it_retries_in_the_log(repo: Path, monkeypatch: py
     assert "no json here" in kept and "provider_error: quota" in kept  # the failure stays explicable
 
 
-def test_an_unavailable_review_names_every_way_out_that_is_left(
-    repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_an_unavailable_review_names_every_way_out_that_is_left(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A blocker says how to recover. With codex out, what is left is this harness with a model
     other than the author's; the message has to say so, or nobody knows."""
     worktree = reviewable_task(repo)
@@ -587,8 +587,7 @@ def test_cli_review_exits_by_verdict_resolves_by_number_and_logs_it(
     assert cli.main(["status"], cwd=repo) == 0 and f"by=codex:{MODEL}" in capsys.readouterr().out
 
 
-def test_a_review_that_blocks_logs_its_kind_and_its_reviewer(
-    repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_review_that_blocks_logs_its_kind_and_its_reviewer(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     worktree = reviewable_task(repo)
 
     def spawn(argv: list[str], brief: str, cwd: Path, timeout_s: int) -> subprocess.CompletedProcess[str]:
