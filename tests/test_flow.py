@@ -621,12 +621,27 @@ def test_cli_finds_the_task_from_the_worktree_and_logs_every_command(
     printed = capsys.readouterr().out
     assert "fix-answer" in printed and "dev-ai clean --yes" in printed  # a command, not names to drop (2026-09-27)
     rows = [json.loads(line) for line in (repo / ".dev-ai/log.jsonl").read_text().splitlines()]
-    assert [(row["command"], row["outcome"]) for row in rows] == [
-        ("start", "ok"), ("check", "blocked"), ("check", "ok"), ("land", "ok"), ("check", "blocked"), ("status", "ok"),
-    ]
+    assert [(row["command"], row["outcome"]) for row in rows] == [("start", "ok"), ("check", "blocked"),
+        ("check", "ok"), ("land", "ok"), ("check", "blocked"), ("status", "ok")]
     assert all(row["at"].endswith("Z") and row["duration_ms"] >= 0 and row["version"] for row in rows)
     assert rows[0]["delivery"] == "commit" and rows[1]["blockers"] == ["empty_patch"]
     assert rows[4]["kind"] == "not_a_task"
+
+
+def test_every_command_refuses_inside_a_lane_job_before_it_acts(
+    repo: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    """lane marks its executor and all it starts with LANE_JOB; the owner's decision of 2026-11-10, no failed case.
+    Refused before anything, help and arguments too (codex); a broken guard here calls no model and removes nothing."""
+    worktree, verbs = open_task(repo), [["start", "other", "--goal", "g", "--paths", "src", "--author-model", "m"],
+                                        ["check"], ["review"], ["land"], ["scope-add"], ["init"], ["status"], ["-h"],
+                                        ["drop", "fix-answer"], ["clean"], ["start"]]
+    monkeypatch.setenv("LANE_JOB", str(repo.parent / "lane-job"))
+    assert [cli.main(argv, cwd=worktree) for argv in verbs] == [1] * len(verbs)
+    assert capsys.readouterr().err.count("only the driver session runs dev-ai") == len(verbs)
+    assert worktree.is_dir() and not (repo / ".dev-ai/tasks/other").exists()  # neither drop nor start acted
+    assert not (repo / ".dev-ai/log.jsonl").exists()  # nothing written, not even the log's row
+    monkeypatch.setenv("LANE_JOB", "")  # set but empty: no lane job
+    assert cli.main(["status"], cwd=worktree) == 0
 
 
 def test_clean_lists_then_removes_landed_worktrees_and_the_databases_dev_ai_json_names(

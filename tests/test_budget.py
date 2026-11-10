@@ -17,7 +17,7 @@ from devai.task import KINDS
 ROOT = Path(__file__).resolve().parents[1]
 MAX_CODE_LINES = 1640  # 1600, 1620 for `dev-ai clean` (2026-09-28), 1640 for opencode (2026-10-27): the owner's
 MAX_TEST_LINES = 2000
-MAX_SETTINGS = 10
+MAX_SETTINGS = 11  # 10 until LANE_JOB, lane's mark on its executor: the owner's decision of 2026-11-10
 MAX_REVIEW_LINES = 260  # 250 until opencode came back, the owner's decision of 2026-10-27
 MAX_DOC_LINES = 705  # raised from 700 on 2026-09-28 for `dev-ai clean`, the owner's decision; see the commit
 

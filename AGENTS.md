@@ -17,7 +17,7 @@ your use, what is not planned), `docs/howto.md` (one task, step by step).
 | Code (`devai/`, `scripts/*.sh`) | ≤ 1 640 lines, `review.py` ≤ 260 | `tests/test_budget.py` |
 | Tests (`tests/`) | ≤ 2 000 lines | `tests/test_budget.py` |
 | Docs (`README.md`, `AGENTS.md`, `docs/*.md`) | ≤ 705 lines | `tests/test_budget.py` |
-| Settings (config keys + env vars) | ≤ 10 | `tests/test_budget.py` |
+| Settings (config keys + env vars) | ≤ 11 | `tests/test_budget.py` |
 | Suite duration | < 60 s | `tests/conftest.py` |
 | Model calls outside `devai/review.py` | 0 | `tests/test_budget.py` |
 
