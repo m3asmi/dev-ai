@@ -96,11 +96,8 @@ def load(root: Path, slug: str) -> Task:
     try:
         return from_record(json.loads(path.read_text(encoding="utf-8")))
     except FileNotFoundError:
-        raise TaskError(
-            f"no task '{slug}' in {state_dir(root)}. List tasks with `dev-ai status`, "
-            f"or open one with `dev-ai start {slug} --goal … --paths … --author-model …`.",
-            "no_task",
-        ) from None
+        raise TaskError(f"no task '{slug}' in {state_dir(root)}. List tasks with `dev-ai status`, or open one with "
+                        f"`dev-ai start {slug} --goal … --paths … --author-model …`.", "no_task") from None
 
 
 def read_json(path: Path) -> dict[str, Any]:
@@ -146,11 +143,8 @@ def slug_from(cwd: Path, explicit: str | None) -> str:
     branch = gitops.current_branch(cwd)
     if branch.startswith(BRANCH_PREFIX):
         return branch[len(BRANCH_PREFIX):]
-    raise TaskError(
-        f"branch '{branch}' is not a dev-ai task. Run this from a task worktree, "
-        "or name the task with --task <slug>.",
-        "not_a_task",
-    )
+    raise TaskError(f"branch '{branch}' is not a dev-ai task. Run this from a task worktree, "
+                    "or name the task with --task <slug>.", "not_a_task")
 
 
 def config(root: Path) -> dict[str, Any]:

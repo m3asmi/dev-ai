@@ -23,20 +23,10 @@ OPENCODE = {"permission": {"bash": {"rm *": "deny", "dev-ai *": "allow"}}}
 
 def install(repo: Path, home: Path, tmp_path: Path, *args: str, path: str = "",
             answers: str = "") -> subprocess.CompletedProcess[str]:
-    return subprocess.run(  # no answer on stdin: every question keeps its default
-        ["bash", "scripts/install.sh", *args],
-        cwd=repo,
-        env={
-            "PATH": path or os.environ["PATH"],
-            "HOME": str(home),
-            "DEV_AI_STABLE": str(tmp_path / "stable"),
-            "DEV_AI_BIN": str(tmp_path / "bin" / "dev-ai"),
-        },
-        input=answers,
-        capture_output=True,
-        text=True,
-        timeout=60,
-    )
+    env = {"PATH": path or os.environ["PATH"], "HOME": str(home), "DEV_AI_STABLE": str(tmp_path / "stable"),
+           "DEV_AI_BIN": str(tmp_path / "bin" / "dev-ai")}
+    return subprocess.run(["bash", "scripts/install.sh", *args], cwd=repo, env=env, input=answers,  # none on stdin:
+                          capture_output=True, text=True, timeout=60)  # every question keeps its default
 
 
 @pytest.fixture
@@ -69,10 +59,8 @@ def home(repo: Path, tmp_path: Path) -> Path:
 def snapshot(root: Path) -> dict[str, str]:
     """Contents, not just names: a dry run that rewrote a settings file in place would leave
     every name exactly where it was."""
-    return {
-        str(path): hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else "dir"
-        for path in sorted(root.rglob("*"))
-    }
+    return {str(path): hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else "dir"
+            for path in sorted(root.rglob("*"))}
 
 
 def test_the_dry_run_announces_everything_and_writes_nothing(repo: Path, home: Path, tmp_path: Path) -> None:
@@ -92,8 +80,7 @@ def test_the_dry_run_announces_everything_and_writes_nothing(repo: Path, home: P
 
 
 def test_a_missing_context_tool_is_named_with_its_install_command_and_never_run(
-    repo: Path, home: Path, tmp_path: Path
-) -> None:
+    repo: Path, home: Path, tmp_path: Path) -> None:
     """rtk and context-mode pay for themselves: the one missing is named with its install command, neither is run."""
     tools, ran = tmp_path / "tools", tmp_path / "claude-ran"
     tools.mkdir()
@@ -110,8 +97,7 @@ def test_a_missing_context_tool_is_named_with_its_install_command_and_never_run(
 
 
 def test_installing_does_what_it_announced_and_a_second_run_changes_nothing(
-    repo: Path, home: Path, tmp_path: Path
-) -> None:
+    repo: Path, home: Path, tmp_path: Path) -> None:
     (home / "dotfiles" / "settings.json").chmod(0o640)  # a copy swapped in, 0600: never wider (task 006)
     first = install(repo, home, tmp_path)
     assert first.returncode == 0, first.stderr
@@ -163,8 +149,7 @@ def test_installing_does_what_it_announced_and_a_second_run_changes_nothing(
     sh(repo, "git", "commit", "-qam", "a landed skill")
     third = install(repo, home, tmp_path)
     assert third.returncode == 0 and "move" in third.stdout, third.stdout
-    skill = home / ".claude" / "skills" / "dev-ai" / "SKILL.md"
-    assert skill.read_text(encoding="utf-8") == "# a half-edited skill\n"
+    assert (home / ".claude/skills/dev-ai/SKILL.md").read_text(encoding="utf-8") == "# a half-edited skill\n"
 
 
 def test_what_stands_at_the_command_path_is_never_replaced(repo: Path, home: Path, tmp_path: Path) -> None:

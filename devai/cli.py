@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -145,6 +146,10 @@ def _task_name(args: argparse.Namespace, cwd: Path) -> str | None:
 
 
 def main(argv: list[str] | None = None, cwd: Path | None = None) -> int:
+    if os.environ.get("LANE_JOB"):  # lane marks its executor and all it starts: refused before anything (2026-11-10)
+        print("BLOCKED: dev-ai runs inside a lane job (LANE_JOB is set): only the driver session runs dev-ai. "
+              "Hand this step back to it.", file=sys.stderr)
+        return 1
     cwd, started, args = cwd or Path.cwd(), time.monotonic(), _parser().parse_args(argv)
     task = _task_name(args, cwd)
     try:
