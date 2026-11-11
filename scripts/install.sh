@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Install dev-ai for daily use: a stable worktree at main's tip, the command on
-# PATH, the skills (dev-ai, frame-task) in every harness, and each harness's user rules: six verbs run unprompted,
-# `drop`, `clean` and `init` asked; a broader rule of the operator's own is his (README, Permissions).
+# PATH, the skills (dev-ai, frame-task) in every harness, and each harness's user rules: five verbs run unprompted,
+# `land`, `drop`, `clean` and `init` asked; a broader rule of the operator's own is his (README, Permissions).
 # Installs; --dry-run prints what it would change and changes nothing; --yes asks nothing. Re-runnable.
 set -euo pipefail
 
@@ -93,12 +93,12 @@ done
 # Read in every project, trusted or not, where a project's own rules are not (codex's docs, 2026-11-08).
 install_file "$HOME/.codex" "codex" "dev-ai rules" "$HOME/.codex/rules/dev-ai.rules" scripts/dev-ai.rules
 
-RULES=""  # Claude Code's allow rules for six verbs and its sandbox exclusion (README, Permissions)
+RULES=""  # Claude Code's allow rules for five verbs and its sandbox exclusion (README, Permissions)
 if [ -d "$HOME/.claude" ]; then wants "Add dev-ai's Claude Code rules?" && RULES=1 || say "  Claude Code rules skipped"; fi
 [ -z "$RULES" ] || python3 -I - "$HOME/.claude/settings.json" "$APPLY" <<'PY' || { say "  Claude Code rules not written, the error above: fix it, then install again"; exit 1; }
 import json, os, sys, tempfile
 path, apply = os.path.realpath(sys.argv[1]), sys.argv[2] == "1"  # a link is kept: its target is written
-verbs = ("status", "start", "check", "scope-add", "review", "land")  # never drop, clean nor init
+verbs = ("status", "start", "check", "scope-add", "review")  # never land (the owner, 2026-11-11), drop, clean, init
 try:  # after his own, none changed; another shape is said, an I/O error fails the install (the owner, 2026-11-04)
     data, added = json.load(open(path, encoding="utf-8")) if os.path.exists(path) else {}, 0
     for section, key, rules in (("permissions", "allow", [f"Bash(dev-ai {v} *)" for v in verbs]),
@@ -117,7 +117,7 @@ except (ValueError, AttributeError, TypeError) as error:  # not plain JSON, or n
     print(f"  {path} left as it is ({error}): the rules are in the README (Permissions)")
 PY
 
-# opencode has no sandbox: what destroys is asked, right after his last rule allowing it (the last match wins), so
+# opencode has no sandbox: what merges or destroys is asked, after his last rule allowing it (the last match wins), so
 # `dev-ai *: allow` no longer runs `drop --destroy` unasked and every later rule of his still wins (codex, task 004).
 if [ -d "$OPENCODE" ] && wants "Add dev-ai's opencode rules?"; then
 python3 -I - "$OPENCODE/opencode.json" "$APPLY" <<'PY' || { say "  opencode rules not written, the error above: fix it, then install again"; exit 1; }
@@ -129,7 +129,7 @@ try:
     held = data.setdefault("permission", {}).setdefault("bash", {})
     if not isinstance(held, dict): raise TypeError("its bash permission is not a map of patterns")
     rules, new = list(held.items()), []
-    for key in (f"dev-ai {v} *" for v in ("drop", "clean", "init")):
+    for key in (f"dev-ai {v} *" for v in ("land", "drop", "clean", "init")):
         hits = [i for i, (k, _) in enumerate(rules) if fnmatch.fnmatchcase(key[:-1] + "x", k)]
         if key not in held and (not hits or rules[hits[-1]][1] == "allow"):  # his ask, deny or own key stands
             rules.insert(hits[-1] + 1 if hits else 0, (key, "ask")); new.append(key)
