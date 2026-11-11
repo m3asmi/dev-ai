@@ -15,7 +15,7 @@ from conftest import sh
 
 ROOT = Path(__file__).resolve().parents[1]
 INSTALL_SCRIPT, CODEX_RULES = ROOT / "scripts" / "install.sh", ROOT / "scripts" / "dev-ai.rules"
-ASKED = {f"dev-ai {verb} *": "ask" for verb in ("drop", "clean", "init")}  # opencode, what destroys
+ASKED = {f"dev-ai {verb} *": "ask" for verb in ("land", "drop", "clean", "init")}  # opencode: merges, destroys
 # What releases before 0.6.0 wrote: a user-wide grant, beside the operator's own rules.
 SETTINGS = {"permissions": {"deny": ["Bash(rm:*)"], "allow": ["Bash(ls:*)", "Bash(dev-ai:*)"]}}
 OPENCODE = {"permission": {"bash": {"rm *": "deny", "dev-ai *": "allow"}}}
@@ -111,14 +111,14 @@ def test_installing_does_what_it_announced_and_a_second_run_changes_nothing(
         source = "docs" if name == "dev-ai" else name  # its own file; codex reads ~/.agents/skills (its docs, 09-21)
         assert (home / where / "skills" / name / "SKILL.md").read_text(encoding="utf-8") == f"# the skill in {source}\n"
     assert not (home / ".codex" / "prompts").exists() and not (home / ".codex" / "skills").exists()
-    # codex's rules, read in every project, trusted or not; opencode's: what destroys asked after his `dev-ai *`
-    assert (home / ".codex" / "rules" / "dev-ai.rules").read_bytes() == CODEX_RULES.read_bytes()
+    codex = (home / ".codex" / "rules" / "dev-ai.rules").read_text(encoding="utf-8")  # read in every project
+    assert codex == CODEX_RULES.read_text(encoding="utf-8") and [  # land merges: asked, as what destroys (2026-11-11)
+        line.endswith('decision = "prompt")') for line in codex.splitlines() if '"land"' in line] == [True]
     opencode = json.loads((home / ".config" / "opencode" / "opencode.json").read_text(encoding="utf-8"))
     assert opencode == {"permission": {"bash": {**OPENCODE["permission"]["bash"], **ASKED}}}
 
-    # The operator's settings, linked from his dotfiles: Claude Code's rules added after his own, none changed, the
-    # link kept (the owner, 2026-11-04); `drop`, `clean` and `init` still ask.
-    verbs = [f"Bash(dev-ai {verb} *)" for verb in ("status", "start", "check", "scope-add", "review", "land")]
+    # His settings, from his dotfiles: our rules after his own, none changed, the link kept (the owner, 2026-11-04)
+    verbs = [f"Bash(dev-ai {verb} *)" for verb in ("status", "start", "check", "scope-add", "review")]
     assert (home / ".claude" / "settings.json").is_symlink()
     assert json.loads((home / "dotfiles" / "settings.json").read_text(encoding="utf-8")) == {
         "permissions": {**SETTINGS["permissions"], "allow": [*SETTINGS["permissions"]["allow"], *verbs]},
@@ -199,7 +199,7 @@ def test_opencode_asks_what_destroys_and_his_own_rules_stand(repo: Path, home: P
     config = home / ".config" / "opencode" / "opencode.json"
     his, asks = {"dev-ai *": "deny", "dev-ai clean *": "allow", "dev-ai init *": "allow"}, list(reversed(ASKED))
     yes = "dev-ai clean --yes"  # his deny after a broad allow: it still wins over the ask put before it
-    for state, after in ((his, list(his)),  # drop denied by his `dev-ai *`, clean and init his keys
+    for state, after in ((his, list(his)),  # land, drop denied by his `dev-ai *`, clean and init his keys
                          ({"*": "allow"}, ["*", *asks]),
                          ({"dev-ai *": "allow", yes: "deny"}, ["dev-ai *", *asks, yes])):
         config.write_text(json.dumps({"permission": {"bash": state}}), encoding="utf-8")

@@ -8,8 +8,8 @@ description: Carry one task through dev-ai to the end in a migrated repository: 
 This is the skill every harness reads; `scripts/install.sh` copies it into each
 one. `dev-ai` contains the work and proves the patch; you drive it from the
 repository's main checkout. Every command runs under your harness's own
-permission rules, which the installer writes in the operator's user settings, so the flow runs to
-the end unprompted; `drop`, `clean` and `init` still ask, and that prompt, not a terminal
+permission rules, which the installer writes in the operator's user settings, so the flow runs up
+to `land` unprompted; `land`, `drop`, `clean` and `init` ask, and that prompt, not a terminal
 of dev-ai's, is where the operator says yes or no. Never a trust bypass, never a push. Run each
 `dev-ai` command bare: behind `cd …&&`, `env`, a pipe, a redirect or `&`, no rule matches it.
 

@@ -95,17 +95,17 @@ that uses dev-ai. One copy, and the tool obeys the note it hands out.
 
 ## Permissions
 
-The flow runs unprompted, except what destroys (the owner, 2026-09-21), for `status`, `start`,
-`check`, `scope-add`, `review` and `land`; `drop`, `clean` and `init` still ask, unless a broader rule of the
-operator's own allows them (`Bash(dev-ai:*)`, an earlier release's, is his to remove). Claude Code: the
+The flow runs unprompted for `status`, `start`, `check`, `scope-add` and `review`; `land`, which commits or
+merges, asks (the owner, 2026-11-11), as `drop`, `clean` and `init` do, what destroys (2026-09-21), unless a broader rule of the
+operator's own allows them (`Bash(dev-ai:*)` or `Bash(dev-ai land *)`, an earlier release's, is his to remove). Claude Code: the
 operator's user settings, `~/.claude/settings.json`, where the installer adds them after his own, none changed,
 a file of another shape left as it is and said, a write that fails ending the install: `"permissions": {"allow": ["Bash(dev-ai check *)", …]}` and
 `"sandbox": {"excludedCommands": ["dev-ai *"]}`, so the reviewer reaches its login and `drop` is not a
 sandboxed command that `autoAllowBashIfSandboxed` runs unasked; `dev-ai` without `*` matches the bare command
 only. codex: `~/.codex/rules/dev-ai.rules`, a copy of `scripts/dev-ai.rules`, read in every project where a
-project's own rules wait for codex to trust it: the six verbs `allow`, outside its sandbox, and `drop`, `clean`,
+project's own rules wait for codex to trust it: the five verbs `allow`, outside its sandbox, and `land`, `drop`, `clean`,
 `init` `prompt`; its strictest matching rule wins, so a `forbidden` of his stands. opencode, which has no sandbox
-and runs any command no rule asks about: `"dev-ai drop *": "ask"`, `clean` and `init` alike, added to
+and runs any command no rule asks about: `"dev-ai land *": "ask"`, `drop`, `clean` and `init` alike, added to
 `~/.config/opencode/opencode.json` right after his last rule that allows the verb, as its last matching rule wins, so
 every later rule of his still wins; none where his rules ask or deny it, his own key for it kept, an `opencode.jsonc` or another shape left as it is and said. `init` writes no
 rule in a repository: Claude's trust prompt warned on every one that held them (the owner, 2026-11-04), and codex

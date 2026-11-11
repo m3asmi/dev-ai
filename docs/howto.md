@@ -22,7 +22,7 @@ dev-ai init --test-command "<the repository's suite>"
 It writes `dev-ai.json`, adds the `Working with dev-ai` note to `AGENTS.md`, and
 keeps `.dev-ai/` out of git. Whatever is already there it keeps and says so. The
 harness rules are the installer's, once in your user settings, so the flow runs without
-asking you, except `drop`, `clean` and `init`; your own deny rules still win (README, Permissions).
+asking you, except `land`, `drop`, `clean` and `init`; your own deny rules still win (README, Permissions).
 
 ## A task, from your side
 
