@@ -23,8 +23,7 @@ OPENCODE = {"permission": {"bash": {"rm *": "deny", "dev-ai *": "allow"}}}
 
 def install(repo: Path, home: Path, tmp_path: Path, *args: str, path: str = "",
             answers: str = "") -> subprocess.CompletedProcess[str]:
-    env = {"PATH": path or os.environ["PATH"], "HOME": str(home), "DEV_AI_STABLE": str(tmp_path / "stable"),
-           "DEV_AI_BIN": str(tmp_path / "bin" / "dev-ai")}
+    env = {"PATH": path or os.environ["PATH"], "HOME": str(home), "DEV_AI_BIN": str(tmp_path / "bin" / "dev-ai")}
     return subprocess.run(["bash", "scripts/install.sh", *args], cwd=repo, env=env, input=answers,  # none on stdin:
                           capture_output=True, text=True, timeout=60)  # every question keeps its default
 
@@ -69,7 +68,7 @@ def test_the_dry_run_announces_everything_and_writes_nothing(repo: Path, home: P
     result = install(repo, home, tmp_path, "--dry-run")
 
     assert result.returncode == 0, result.stderr
-    for announced in ("would create", "would link", "would copy"):
+    for announced in ("would link", "would copy"):
         assert announced in result.stdout, result.stdout
     for never in ("would grant", "granted", "would remove", "would write"):  # no permission, and nothing deleted
         assert never not in result.stdout, result.stdout
@@ -103,9 +102,7 @@ def test_installing_does_what_it_announced_and_a_second_run_changes_nothing(
     assert first.returncode == 0, first.stderr
     assert (home / "dotfiles" / "settings.json").stat().st_mode & 0o777 == 0o600
 
-    stable, link = tmp_path / "stable", tmp_path / "bin" / "dev-ai"
-    assert (stable / "scripts" / "install.sh").is_file(), "the tag is not checked out"
-    assert link.is_symlink() and os.readlink(link) == str(stable / "bin" / "dev-ai")
+    assert os.readlink(tmp_path / "bin" / "dev-ai") == str(repo / "bin" / "dev-ai")  # what lands runs (owner, 11-12)
     for where, name in ((where, name) for where in (".claude", ".agents", ".config/opencode")
                         for name in ("dev-ai", "frame-task")):
         source = "docs" if name == "dev-ai" else name  # its own file; codex reads ~/.agents/skills (its docs, 09-21)
@@ -148,7 +145,7 @@ def test_installing_does_what_it_announced_and_a_second_run_changes_nothing(
     # What lands on main is what the next run installs: no bump, no tag to push (the owner, 2026-10-14)
     sh(repo, "git", "commit", "-qam", "a landed skill")
     third = install(repo, home, tmp_path)
-    assert third.returncode == 0 and "move" in third.stdout, third.stdout
+    assert third.returncode == 0 and "copy" in third.stdout, third.stdout
     assert (home / ".claude/skills/dev-ai/SKILL.md").read_text(encoding="utf-8") == "# a half-edited skill\n"
 
 
@@ -165,9 +162,12 @@ def test_what_stands_at_the_command_path_is_never_replaced(repo: Path, home: Pat
         assert snapshot(tmp_path) == before, "something was written before the refusal"
         assert os.path.realpath(command) == str(command if make is shutil.copy else target), "what stood there moved"
         command.unlink()
-    os.symlink(tmp_path / "stable" / "bin" / "dev-ai", command)  # an install's own, its stable worktree gone since
-    assert install(repo, home, tmp_path).returncode == 0 and (tmp_path / "stable" / "scripts").is_dir()
-    assert os.readlink(command) == str(tmp_path / "stable" / "bin" / "dev-ai")
+    for left in (False, True):  # an earlier install's link to its stable worktree, gone or not: re-pointed
+        command.unlink(missing_ok=True), os.symlink(tmp_path / "dev-ai.stable" / "bin" / "dev-ai", command)
+        left and (tmp_path / "dev-ai.stable" / "bin").mkdir(parents=True)
+        assert (moved := install(repo, home, tmp_path)).returncode == 0 and "re-point" in moved.stdout, moved.stdout
+        assert os.readlink(command) == str(repo / "bin" / "dev-ai") and ("no longer used" in moved.stdout) == left
+        assert (tmp_path / "dev-ai.stable").exists() == left  # named, never removed
 
 
 def test_the_installer_deletes_nothing(repo: Path, home: Path, tmp_path: Path) -> None:

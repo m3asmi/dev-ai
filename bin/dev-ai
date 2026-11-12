@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Entry point. Link it onto PATH from a worktree at a tagged commit, never from
-the checkout being edited (README, Install)."""
+"""Entry point. The installer links the main checkout's copy onto PATH: keep that
+checkout on main (README, Install)."""
 import sys
 from pathlib import Path
 
