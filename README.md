@@ -114,19 +114,19 @@ redirect or `&`, no rule matches it, and Claude Code's sandbox keeps a call with
 
 ## Install
 
-`bash scripts/install.sh` installs; `--dry-run` prints what it would change and changes nothing. It puts a
-second worktree of this repository at the tip of `main`, links it onto `PATH` as `dev-ai`, copies `docs/skill.md`
+`bash scripts/install.sh` installs; `--dry-run` prints what it would change and changes nothing. It links
+the main checkout's `bin/dev-ai` onto `PATH` as `dev-ai`, copies `docs/skill.md` from `main`'s commit
 where Claude Code, codex (`~/.agents/skills`, its docs) and opencode (`~/.config/opencode/skills`) read skills:
 `/dev-ai`, `$dev-ai` in codex, `@dev-ai` in opencode, is the one entry point; beside it `skills/frame-task`, which
 frames a task before `start`. It deletes nothing: what an earlier release wrote stays where it is,
 the operator's to remove. At the command's path it replaces nothing either: whatever stands there, but the link
-an install wrote, is refused, his to move; a skill or rules file of his that is a link is left, said. It adds each harness's rules (Permissions). It names rtk and context-mode when absent,
+an install wrote (an earlier one's, to `dev-ai.stable`, is re-pointed, that worktree named for him to remove), is refused, his to move; a skill or rules file of his that is a link is left, said. It adds each harness's rules (Permissions). It names rtk and context-mode when absent,
 with their own install command, and runs neither. The skill for each harness found, each one's rules and the context tools
-are each asked on stdin, `[Y/n]`: no answer keeps yes, and `--yes` asks nothing. Daily use never runs from the checkout
-being edited: a half-edited `dev-ai` would judge real patches.
+are each asked on stdin, `[Y/n]`: no answer keeps yes, and `--yes` asks nothing. Tasks are written in their
+worktrees, so the main checkout holds `main`: what lands there, or a `git pull` brings, runs at once (the owner,
+2026-11-12, dropping the stable worktree); keep that checkout on `main` and edit nothing there by hand.
 
-To update a machine: `git pull`, then run the installer again. What landed on `main` is what
-runs; no tag to make or push (tags made before 2026-10-14 stay as markers).
+To update a machine: `git pull`; run the installer again only for a new skill or rule. No tag to make or push.
 
 ## Configure
 

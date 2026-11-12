@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install dev-ai for daily use: a stable worktree at main's tip, the command on
+# Install dev-ai for daily use: the main checkout's command on
 # PATH, the skills (dev-ai, frame-task) in every harness, and each harness's user rules: five verbs run unprompted,
 # `land`, `drop`, `clean` and `init` asked; a broader rule of the operator's own is his (README, Permissions).
 # Installs; --dry-run prints what it would change and changes nothing; --yes asks nothing. Re-runnable.
@@ -8,7 +8,7 @@ set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # The main checkout, even when this script runs from a task worktree of it.
 REPO="$(dirname "$(git -C "$HERE" rev-parse --path-format=absolute --git-common-dir)")"
-STABLE="${DEV_AI_STABLE:-$(dirname "$REPO")/dev-ai.stable}"
+OLD="$(dirname "$REPO")/dev-ai.stable"  # the worktree installs put there before 2026-11-12, its link ours
 BIN="${DEV_AI_BIN:-$HOME/.local/bin/dev-ai}"
 say() { printf '%s\n' "$*"; }
 act() { if [ -n "$APPLY" ]; then say "  $1"; else say "  would $1"; fi; }
@@ -27,61 +27,42 @@ wants() {  # <question>: yes unless answered n; read on stdin, an empty answer o
 REV="$(git -C "$REPO" rev-parse --verify --quiet 'main^{commit}')" || { say "no branch main in $REPO"; exit 1; }
 TAG="$(git -C "$REPO" describe --tags --always "$REV")"  # a name to read, never what is checked out
 say "dev-ai $TAG from $REPO${APPLY:+ (applying)}"
-# Before anything is written. The command's path holds nothing, or the link this install writes, its worktree
-# gone or not: whatever else stands there is the operator's, never replaced (the owner, 2026-09-29). `ln -sfn`
-# replaced a file and a link of his, and telling his links from ours by where they led failed twice (task 034).
-[ ! -e "$BIN" ] && [ ! -L "$BIN" ] || [ "$(readlink "$BIN")" = "$STABLE/bin/dev-ai" ] || {
+# Before anything is written. The command's path holds nothing, or a link an install wrote, to this checkout or
+# to the worktree of an earlier one, gone or not: whatever else stands there is the operator's, never replaced
+# (the owner, 2026-09-29). `ln -sfn` replaced a file and a link of his, and telling his links from ours by where
+# they led failed twice (task 034).
+LINK="$(readlink "$BIN" 2>/dev/null || true)"
+[ ! -e "$BIN" ] && [ ! -L "$BIN" ] || [ "$LINK" = "$REPO/bin/dev-ai" ] || [ "$LINK" = "$OLD/bin/dev-ai" ] || {
     say "$BIN is not the link this install writes: move it, or name another with DEV_AI_BIN"; exit 1; }
 
-# 1. The stable worktree. Daily use never runs from the checkout being edited.
-if [ -d "$STABLE" ]; then
-    # It must be a worktree of this repository, not the checkout being edited, not a task
-    # worktree, and clean: `git checkout <commit>` in any of those would take work with it.
-    OWNER="$(git -C "$STABLE" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || echo none)"
-    BRANCH="$(git -C "$STABLE" rev-parse --abbrev-ref HEAD 2>/dev/null || echo none)"
-    case "$(dirname "$OWNER")=$(readlink -f "$STABLE")=$BRANCH" in
-        "$REPO=$(readlink -f "$REPO")="*) say "$STABLE is the checkout being edited: refusing"; exit 1 ;;
-        "$REPO="*"=dev-ai/"*) say "$STABLE holds task branch $BRANCH: refusing"; exit 1 ;;
-        "$REPO="*) ;;
-        *) say "$STABLE is not a worktree of $REPO: refusing"; exit 1 ;;
-    esac
-    [ -z "$(git -C "$STABLE" status --porcelain)" ] || { say "$STABLE is dirty: refusing"; exit 1; }
-    if [ "$(git -C "$STABLE" rev-parse HEAD)" != "$REV" ]; then
-        act "move $STABLE from $(git -C "$STABLE" describe --tags --always) to $TAG"
-        applying && git -C "$STABLE" checkout --quiet --detach "$REV"
-    else
-        say "  stable worktree already at $TAG"
-    fi
+# 1. The command on PATH is the main checkout's own: what is there runs at once, no install to re-run after a
+# pull or a landing (the owner, 2026-11-12, who dropped the stable worktree). Nothing is deleted, here or below:
+# what an earlier release wrote stays where it is, the operator's to remove (the owner, 2026-09-29).
+if [ "$LINK" = "$REPO/bin/dev-ai" ]; then
+    say "  $BIN already points at $REPO"
+elif [ -L "$BIN" ]; then  # an earlier install's, to its stable worktree: anything else ended the run above
+    act "re-point $BIN from $OLD to $REPO"
+    applying && ln -sfn "$REPO/bin/dev-ai" "$BIN"
 else
-    act "create $STABLE at $TAG"
-    applying && git -C "$REPO" worktree add --quiet --detach "$STABLE" "$REV"
+    act "link $BIN -> $REPO/bin/dev-ai"
+    if applying; then mkdir -p "$(dirname "$BIN")"; ln -s "$REPO/bin/dev-ai" "$BIN"; fi
 fi
+[ ! -d "$OLD" ] || say "  $OLD is no longer used: git -C $REPO worktree remove $OLD, yours to run"
 
-# 2. The command on PATH, written where nothing stands. Nothing is deleted, here or below: what an
-# earlier release wrote stays where it is, the operator's to remove (the owner, 2026-09-29).
-if [ -L "$BIN" ]; then  # the link this install writes: anything else ended the run above
-    say "  $BIN already points at the stable worktree"
-else
-    act "link $BIN -> $STABLE/bin/dev-ai"
-    if applying; then mkdir -p "$(dirname "$BIN")"; ln -s "$STABLE/bin/dev-ai" "$BIN"; fi
-fi
-
-# 3. The skills and codex's rules, where each harness reads its user's, each asked on its own: an operator may
-# keep his own copy. They come from the stable worktree, like the command itself: a skill read from the
-# checkout being edited would drive every harness from a half-edited file.
-# Asked of the commit, not of $STABLE: on a dry run that worktree does not exist yet, and a
-# dry run that blames the commit for a file it does carry previews a lie.
+# 2. The skills and codex's rules, where each harness reads its user's, each asked on its own: an operator may
+# keep his own copy. They come from main's commit, not from the files of the checkout: a skill read from a
+# half-edited file would drive every harness.
 install_file() {  # <home: there, the harness is installed> <label> <what> <where it goes> <its file>
     [ -d "$1" ] || { say "  $2 not installed, skipped"; return 0; }
     git -C "$REPO" cat-file -e "$REV:$5" 2>/dev/null || { say "  $2: $TAG carries no $5, land it on main first"; return 0; }
-    # A link of his is never written through (codex, task 004); compared against the commit, not $STABLE (a dry run).
+    # A link of his is never written through (codex, task 004).
     if [ -L "$4" ]; then say "  $2 $3: $4 is a link, left as it is: his to update"
     elif [ -f "$4" ] && git -C "$REPO" show "$REV:$5" | cmp -s - "$4"; then
         say "  $2 $3 already current"
     else
         wants "Install the $3 for $2?" || { say "  $2 $3 skipped"; return 0; }
         act "copy $TAG's $5 to $4"
-        if applying; then mkdir -p "$(dirname "$4")"; cp "$STABLE/$5" "$4"; fi
+        if applying; then mkdir -p "$(dirname "$4")"; git -C "$REPO" show "$REV:$5" > "$4"; fi
     fi
 }
 OPENCODE="$HOME/.config/opencode"  # it reads ~/.claude and ~/.agents too: a copy of its own serves it alone

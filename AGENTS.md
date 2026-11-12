@@ -41,7 +41,7 @@ dev-pipeline's, the larger tool dev-ai replaced, measured on 2026-09-17.
 | Failed on its own paperwork | TASK-051, 046, 048, 056 | blockers are about the patch; bookkeeping fails open |
 | Stopped the human too often | 31 + 42 stops | the harness's prompt and the mandate recorded at `start`; none of dev-ai's own: a refuted finding goes back to the reviewer |
 | Fallback chains, retry budgets, ledger | a steady source of fixes | one reviewer, one attempt; every command re-runs |
-| Tool edits live for every consumer | runners symlinked to the working checkout | run from a stable worktree at `main`'s tip (README) |
+| Tool edits live for every consumer | runners symlinked to the working checkout | tasks written in their worktrees; the command is the main checkout's, on `main`, nothing edited there by hand (the owner, 2026-11-12, README) |
 | Several sessions patched the tool | stray fix branches | one owning session; consumers report |
 | The tool became the project | fix lots H to O | stop criterion; the product is what it serves |
 
@@ -113,7 +113,7 @@ devai/gitops.py     bounded git calls, exact-patch fingerprint, untracked and ig
 devai/impact.py     what needs a review (all but descriptive docs), the secret deny list
 devai/testgate.py   host test run
 devai/review.py     the one model call: another harness reviews the patch, beside its check; findings resolved
-scripts/install.sh  installs main's tip and the skill, the one entry point; each harness's user rules
+scripts/install.sh  links the main checkout's command, copies main's skill, the one entry point; each harness's user rules
 scripts/dev-ai.rules  codex's rules, copied to ~/.codex/rules/ by the installer
 scripts/clean-worktrees.sh, drop-test-dbs.sh  what `dev-ai clean` runs, per project by arguments; dry run unless --yes
 tests/              test_flow.py, test_review.py, test_install.py, test_cleanup.py (behaviour), test_budget.py
