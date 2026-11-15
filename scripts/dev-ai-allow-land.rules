@@ -1,0 +1,5 @@
+# Opt-in codex rules from install.sh --allow-land: land is allowed; other destructive verbs still ask.
+# A stricter operator rule still wins. This file replaces the default managed rule, never accompanies it.
+prefix_rule(pattern = ["dev-ai", ["status", "start", "check", "scope-add", "review"]], decision = "allow")
+prefix_rule(pattern = ["dev-ai", "land"], decision = "allow")
+prefix_rule(pattern = ["dev-ai", ["drop", "clean", "init"]], decision = "prompt")

@@ -85,7 +85,8 @@ write. A command run inside a worktree finds its task from the branch name.
 ## Known limits
 
 - The harness's permission prompt is the approval. A rule that allows every `dev-ai` command user-wide
-  removes it; the installer writes none: the rules it adds allow five verbs only, and ask for `land`, `drop`, `clean` and `init`. This prevents accidents, not a determined bypass.
+  removes it; the installer writes none: its default rules allow five verbs and ask for `land`, `drop`, `clean` and `init`.
+  Codex's explicit `--allow-land` install variant allows `land` alone; the other three still ask. This prevents accidents, not a determined bypass.
 - The model behind a reviewer is asked for (`--model`) and never observed: no CLI reports which one
   answered, and a provider's fallback can change it. The record says `observed unknown` and claims
   independence of harnesses, or, when the operator keeps the author's harness, of requested names

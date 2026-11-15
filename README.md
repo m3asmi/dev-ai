@@ -104,7 +104,8 @@ a file of another shape left as it is and said, a write that fails ending the in
 sandboxed command that `autoAllowBashIfSandboxed` runs unasked; `dev-ai` without `*` matches the bare command
 only. codex: `~/.codex/rules/dev-ai.rules`, a copy of `scripts/dev-ai.rules`, read in every project where a
 project's own rules wait for codex to trust it: the five verbs `allow`, outside its sandbox, and `land`, `drop`, `clean`,
-`init` `prompt`; its strictest matching rule wins, so a `forbidden` of his stands. opencode, which has no sandbox
+`init` `prompt` by default; `--allow-land` makes only `land` `allow` in the same managed file. Its strictest matching
+rule wins, so a `forbidden` of his stands. opencode, which has no sandbox
 and runs any command no rule asks about: `"dev-ai land *": "ask"`, `drop`, `clean` and `init` alike, added to
 `~/.config/opencode/opencode.json` right after his last rule that allows the verb, as its last matching rule wins, so
 every later rule of his still wins; none where his rules ask or deny it, his own key for it kept, an `opencode.jsonc` or another shape left as it is and said. `init` writes no
@@ -114,7 +115,12 @@ redirect or `&`, no rule matches it, and Claude Code's sandbox keeps a call with
 
 ## Install
 
-`bash scripts/install.sh` installs; `--dry-run` prints what it would change and changes nothing. It links
+`bash scripts/install.sh` installs; `--dry-run` prints what it would change and changes nothing. For Codex,
+`--allow-land` installs an opt-in managed rule that allows `dev-ai land` when the harness cannot prompt;
+`drop`, `clean` and `init` still prompt, and an operator's stricter rule still wins. An ordinary
+reinstall keeps this choice when the installed rules still match the known managed variant;
+`--prompt-land` restores the default prompt. A customized regular rules file or a symlink is left
+untouched for the operator to update. It links
 the main checkout's `bin/dev-ai` onto `PATH` as `dev-ai`, copies `docs/skill.md` from `main`'s commit
 where Claude Code, codex (`~/.agents/skills`, its docs) and opencode (`~/.config/opencode/skills`) read skills:
 `/dev-ai`, `$dev-ai` in codex, `@dev-ai` in opencode, is the one entry point; beside it `skills/frame-task`, which
