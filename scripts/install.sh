@@ -84,6 +84,15 @@ if [ "$LAND_MODE" = allow ] || { [ "$LAND_MODE" = auto ] && [ -f "$CODEX_TARGET"
     CODEX_RULES=scripts/dev-ai-allow-land.rules
 fi
 install_file "$HOME/.codex" "codex" "dev-ai rules" "$CODEX_TARGET" "$CODEX_RULES" managed
+# What codex's own checker decides for land over every rules file there, said, never called working: a file proves
+# no session (tg-bot web-realtime-call, 2026-11-17: the default rule prompts, approvals were off, land never ran).
+POLICY=(); for file in "$HOME/.codex/rules/"*.rules; do [ ! -f "$file" ] || POLICY+=(--rules "$file"); done
+if [ "${#POLICY[@]}" -gt 0 ] && command -v codex >/dev/null; then
+    case "$(codex execpolicy check "${POLICY[@]}" dev-ai land 2>/dev/null | sed -n 's/.*"decision":"\([a-z]*\)"}$/\1/p')" in
+        allow) say "  codex allows a bare 'dev-ai land', a rule on its arguments aside; unproven: a new session's policy decides" ;;
+        prompt) say "  codex asks for a bare 'dev-ai land': BLOCKED where approvals are off; --allow-land, then a new session" ;;
+        forbidden) say "  codex forbids a bare 'dev-ai land'" ;; *) say "  codex: 'dev-ai land' not decided or not evaluated" ;; esac
+fi
 
 RULES=""  # Claude Code's allow rules for five verbs and its sandbox exclusion (README, Permissions)
 if [ -d "$HOME/.claude" ]; then wants "Add dev-ai's Claude Code rules?" && RULES=1 || say "  Claude Code rules skipped"; fi

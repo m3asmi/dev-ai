@@ -116,7 +116,9 @@ redirect or `&`, no rule matches it, and Claude Code's sandbox keeps a call with
 ## Install
 
 `bash scripts/install.sh` installs; `--dry-run` prints what it would change and changes nothing. For Codex,
-`--allow-land` installs an opt-in managed rule that allows `dev-ai land` when the harness cannot prompt;
+`--allow-land` installs an opt-in managed rule that allows `dev-ai land`: where approvals are off, codex refuses a
+`prompt` before the command runs. The installer says what codex's checker decides for a bare `dev-ai land` over the rules there, a rule on its arguments aside,
+never that a session lands: one already open keeps the rules it started with, and its harness's policy still decides;
 `drop`, `clean` and `init` still prompt, and an operator's stricter rule still wins. An ordinary
 reinstall keeps this choice when the installed rules still match the known managed variant;
 `--prompt-land` restores the default prompt. A customized regular rules file or a symlink is left
