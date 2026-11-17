@@ -18,23 +18,12 @@ HEADERS = {  # split so that no key header sits in this file
 }
 
 
-@pytest.mark.parametrize(
-    ("name", "secret"),
-    [
-        (".env", True),
-        ("config/.env.local", True),
-        ("deploy/server.pem", True),
-        ("odoo-prod.conf", True),
-        ("home/id_ed25519", True),
-        ("src/keys.py", True),  # holds a PEM header among its lines
-        ("src/pgp.py", True),  # holds a PGP private-key block header
-        ("odoo.conf.example", False),
-        ("src/environment.py", False),
-    ],
-)
+@pytest.mark.parametrize(("name", "secret"), [
+    (".env", True), ("config/.env.local", True), ("deploy/server.pem", True), ("odoo-prod.conf", True),
+    ("home/id_ed25519", True), ("src/keys.py", True), ("src/pgp.py", True),  # the last two hold a PEM, a PGP header
+    ("odoo.conf.example", False), ("src/environment.py", False)])
 def test_a_secret_bearing_patch_fails_its_check_and_never_reaches_a_reviewer(
-    repo: Path, monkeypatch: pytest.MonkeyPatch, name: str, secret: bool
-) -> None:
+    repo: Path, monkeypatch: pytest.MonkeyPatch, name: str, secret: bool) -> None:
     task = commands.start(repo, "fix-answer", "make the answer right", ["*"], None, "claude", author_model="m")
     target = Path(task.worktree) / name
     target.parent.mkdir(parents=True, exist_ok=True)

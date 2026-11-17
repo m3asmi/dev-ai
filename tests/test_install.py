@@ -31,9 +31,8 @@ def install(repo: Path, home: Path, tmp_path: Path, *args: str, path: str = "",
 def home(repo: Path, tmp_path: Path) -> Path:
     """main with the script and the skill, no tag; a HOME with Claude Code, codex and opencode as a release left it."""
     (repo / "scripts").mkdir()
-    shutil.copy(INSTALL_SCRIPT, repo / "scripts" / "install.sh")
-    shutil.copy(CODEX_RULES, repo / "scripts" / "dev-ai.rules")
-    shutil.copy(ALLOW_LAND_RULES, repo / "scripts" / "dev-ai-allow-land.rules")
+    for source in (INSTALL_SCRIPT, CODEX_RULES, ALLOW_LAND_RULES):
+        shutil.copy(source, repo / "scripts" / source.name)
     for skill in (repo / "docs" / "skill.md", repo / "skills" / "frame-task" / "SKILL.md"):
         skill.parent.mkdir(parents=True), skill.write_text(f"# the skill in {skill.parent.name}\n", encoding="utf-8")
     sh(repo, "git", "add", "scripts", "docs", "skills")
@@ -53,8 +52,7 @@ def home(repo: Path, tmp_path: Path) -> Path:
 
 
 def snapshot(root: Path) -> dict[str, str]:
-    return {str(path): hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else "dir"
-            for path in sorted(root.rglob("*"))}
+    return {str(p): hashlib.sha256(p.read_bytes()).hexdigest() if p.is_file() else "dir" for p in root.rglob("*")}
 
 
 def test_the_dry_run_announces_everything_and_writes_nothing(repo: Path, home: Path, tmp_path: Path) -> None:
@@ -74,7 +72,12 @@ def test_the_dry_run_announces_everything_and_writes_nothing(repo: Path, home: P
 
 
 def test_allow_land_installs_one_unambiguous_managed_rule(repo: Path, home: Path, tmp_path: Path) -> None:
-    assert install(repo, home, tmp_path, "--yes").returncode == 0
+    def judged(*command: str) -> str:  # codex's own checker over every rules file there, as a session loads them
+        rules = [arg for path in sorted((home / ".codex/rules").glob("*.rules")) for arg in ("--rules", str(path))]
+        return json.loads(subprocess.check_output(["codex", "execpolicy", "check", *rules, *command], timeout=30, env={
+            "PATH": os.environ["PATH"], "HOME": str(home)}, stderr=subprocess.DEVNULL)).get("decision", "none")
+    land = ("dev-ai", "land", "--task", "web-realtime-call", "--merge", "-m", "feat(web): add bounded calls")
+    assert (asked := install(repo, home, tmp_path, "--yes")).returncode == 0
     assert (first := install(repo, home, tmp_path, "--allow-land", "--yes")).returncode == 0, first.stderr
     rules = (home / ".codex/rules/dev-ai.rules").read_text(encoding="utf-8")
     assert rules == ALLOW_LAND_RULES.read_text(encoding="utf-8") and rules.count('"land"') == 1
@@ -86,6 +89,15 @@ def test_allow_land_installs_one_unambiguous_managed_rule(repo: Path, home: Path
     assert install(repo, home, tmp_path, "--yes").returncode == 0 and snapshot(tmp_path) == before
     assert install(repo, home, tmp_path, "--prompt-land", "--yes").returncode == 0
     assert (home / ".codex/rules/dev-ai.rules").read_text(encoding="utf-8") == CODEX_RULES.read_text(encoding="utf-8")
+    shutil.which("codex") or pytest.skip("codex's own policy checker judges what follows")
+    assert judged(*land) == "prompt" and "BLOCKED where approvals are off" in asked.stdout  # the incident: never ran
+    opted = install(repo, home, tmp_path, "--allow-land", "--yes")
+    assert judged(*land) == "allow" and "aside; unproven" in opted.stdout and "BLOCKED" not in opted.stdout
+    wrong = ("dev-ai landx", "dev-ai", "/usr/bin/dev-ai land", "env dev-ai land --merge")  # a prefix that gains nothing
+    assert [judged(*w.split()) for w in wrong] == ["none"] * 4 and judged("dev-ai", "drop", "--destroy") == "prompt"
+    (home / ".codex/rules/his.rules").write_text('prefix_rule(pattern = ["dev-ai", "land"], decision = "forbidden")\n')
+    denied = install(repo, home, tmp_path, "--allow-land", "--yes")  # his denial stands, and is said
+    assert judged(*land) == "forbidden" and "codex forbids a bare 'dev-ai land'" in denied.stdout, denied.stdout
 
 
 def test_a_missing_context_tool_is_named_with_its_install_command_and_never_run(

@@ -25,6 +25,7 @@ harness rules are the installer's, once in your user settings, so the flow runs 
 asking you, except `land`, `drop`, `clean` and `init`; your own deny rules still win (README, Permissions).
 Codex can opt into the installer's managed `land` allow rule with `bash scripts/install.sh --allow-land`;
 later installs keep the choice, and `--prompt-land` restores the default. The other three verbs still ask.
+Without it, a codex session that cannot ask refuses `land` before it runs: open a new session after opting in.
 
 ## A task, from your side
 
