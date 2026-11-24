@@ -33,7 +33,7 @@ and the message it printed.
 ```
 dev-ai init --test-command "pytest -q"   # once per repository: dev-ai.json, the AGENTS.md note, .dev-ai/ excluded
 dev-ai start fix-answer --goal "make the answer right" --paths src/app.py tests/ \
-    --author claude --author-model claude-opus-5-5 --delivery merge
+    --author claude --author-model claude-opus-5-5 --author-effort medium --delivery merge
 cd <printed worktree>            # develop here, with the harness's model of your choice
 dev-ai check                     # scope, tests, what needs a review — on the exact patch
 dev-ai review --model gpt-6-sol  # beside the check: another harness reads the exact patch, its model named

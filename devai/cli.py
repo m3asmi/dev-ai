@@ -40,6 +40,7 @@ def _parser() -> argparse.ArgumentParser:
     start.add_argument("--base", help="branch to start from (default: the main checkout's current branch)")
     start.add_argument("--author", default="claude", choices=AUTHORS, help="the harness that writes the patch")
     start.add_argument("--author-model", default="", help="the model that writes the patch; a human author has none")
+    start.add_argument("--author-effort", default="", help="the reasoning effort writing it; left out, not recorded")
     start.add_argument("--delivery", default="commit", choices=DELIVERIES, help="what `land` may do; merge is said")
     start.add_argument("--spec", help="a short file of invariants and decisions for the reviewer to judge against")
     for name, text in (("check", "scope, host tests and what needs a review, on the exact patch"),
@@ -60,7 +61,7 @@ def _parser() -> argparse.ArgumentParser:
     sub.choices["land"].add_argument("-m", "--message", action="append", help="each one a paragraph, as git joins them")
     sub.choices["land"].add_argument("--merge", action="store_true")
     sub.choices["scope-add"].add_argument("paths", nargs="*")
-    sub.choices["scope-add"].add_argument("--reason", default="")
+    sub.choices["scope-add"].add_argument("--reason", required=True, help="why the goal needs it, or the decision")
     gone = sub.add_parser("drop", help="abandon a task: remove its worktree and branch, keep its record")
     gone.add_argument("slug")
     gone.add_argument("--destroy", action="store_true", help="destroy work that lives nowhere else")
@@ -76,10 +77,10 @@ def _parser() -> argparse.ArgumentParser:
 def _dispatch(args: argparse.Namespace, cwd: Path) -> tuple[int, str | None, dict[str, Any]]:
     if args.command == "start":
         task = commands.start(cwd, args.slug, args.goal, args.paths, args.base, args.author, args.spec,
-                              args.delivery, args.author_model)
+                              args.delivery, args.author_model, args.author_effort)
         print(f"task {task.label} opened on {task.branch}, delivery {task.delivery}\n"
               f"worktree: {task.worktree}\nDevelop there, then side by side: dev-ai check, dev-ai review")
-        return 0, task.slug, {"delivery": task.delivery}
+        return 0, task.slug, {"delivery": task.delivery, "author_effort": task.author_effort}
     if args.command == "status":
         for row in (rows := commands.status(cwd)):
             number = f"{row['number']:03d}" if row["number"] else "  -"

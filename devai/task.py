@@ -22,7 +22,7 @@ _NUMBER = re.compile(r"^(?:task[-_]?)?0*([0-9]{1,6})$", re.IGNORECASE)  # 7, 007
 # Every blocker kind there is. The log counts the ones that fire; one that never does
 # is a check to remove. `tests/test_budget.py` holds this list equal to the kinds in use.
 KINDS = (
-    "no_task", "not_a_task", "ambiguous_task", "bad_name", "no_scope", "no_author_model", "bad_spec",
+    "no_task", "not_a_task", "ambiguous_task", "bad_name", "no_author_model", "bad_spec",
     "task_exists", "worktree_gone", "empty_patch", "out_of_scope", "secret_in_patch", "patch_moved", "no_test_command",
     "tests_timeout", "tests_failed", "unchecked", "stale_base", "no_message", "wrong_branch", "dirty_checkout",
     "no_mandate", "lost_work", "symlink", "review_failed", "review_pending", "review_unavailable",
@@ -56,6 +56,7 @@ class Task:
     scope_history: list[dict[str, Any]] = field(default_factory=list)
     number: int = 0  # 0: opened before numbering existed, and named by its slug only
     author_model: str = ""  # the model behind the author; '' only for a human, or a task opened before it was required
+    author_effort: str = ""  # the effort the author said at `start`, as the reviewer's is asked; '' not recorded
     # A task opened before mandates existed never agreed to a merge: it loads as `commit`.
     delivery: str = "commit"
 
