@@ -20,21 +20,26 @@ of dev-ai's, is where the operator says yes or no. Never a trust bypass, never a
    (`*/.next/*`, `*.tsbuildinfo`), never a secret; init reports `none declared`
    on a repository without them: run it again with them. `dev-ai` not on PATH: stop and say so. Do not improvise a flow.
 2. `dev-ai status`: every task, its evidence confronted with the repository, and
-   the next step. Resume the task named in the arguments, or open one:
-   `dev-ai start <slug> --goal "<what done means>" --paths <files it may touch>
-   --author <claude|codex|opencode> --author-model <id> [--delivery merge|commit]
-   [--spec <file>]`. `--author` is the harness you are,
+   the next step. Resume the task named in the arguments, or open one. Seven paths or more:
+   before `start`, offer a split by `frame-task`; refused, have the operator switch the session
+   to `high` first. Then `dev-ai start <slug> --goal "<what done means>" --paths <files it may touch>
+   --author <claude|codex|opencode> --author-model <id> --author-effort <level>
+   [--delivery merge|commit] [--spec <file>]`. `--author` is the harness you are,
    `--author-model` the model that writes the patch, its full id, a delegated worker's
    when one does; `start` refuses a task without it. They decide who may review, and
    a patch several models wrote is read by another harness. `--delivery merge` only when the operator said to merge, in his
    own words; otherwise `commit`, the default. Your harness picks the model with its
    own selector and rules; dev-ai holds no model list, and neither does this skill.
-   A capable model already active stays: never restart a session to go down a tier. Keep the scope to the
-   narrowest set that holds the change; a spec of at most 80 lines states the
-   invariants the reviewer judges against. Work only inside the printed worktree.
+   A capable model already active stays: never restart a session to go down a tier. `--author-effort` is the
+   session's effort as it stands (its `/status` shows it), never a guess. Keep the scope to the
+   narrowest set that holds the change; a spec of at most 80 lines states the invariants
+   the reviewer judges against. Work only inside the printed worktree.
 3. Write the change, tests first when behaviour changes. A file the goal turns
    out to need: `dev-ai scope-add <path> --reason "…"`, the reason on record; a decision
    taken since `start` (the lead's, the operator's): `dev-ai scope-add --reason "<it>"`, dated, read by the reviewer.
+   A `scope-add` that brings the scope to seven paths or more, or a second failed review (step 5):
+   before writing on, tell the operator "switch to high for the rest" (Claude Code: `/effort high`);
+   once switched, `dev-ai scope-add --reason "author effort high: <why>"` puts it on record, dated.
    Then `dev-ai check` and, unless the patch is descriptive documentation only,
    `dev-ai review` (step 5), side by side: neither waits for the other, and `land`
    needs both on the same patch. The suite can outlast a shell tool's time limit: run
@@ -51,7 +56,8 @@ of dev-ai's, is where the operator says yes or no. Never a trust bypass, never a
    A `critical` or `high` finding is a claim: reproduce or refute it, then
    `dev-ai review --resolve <n> --resolution confirmed|refuted --evidence
    "<what showed it>"`. Confirmed: fix, then check and review again — one such cycle per
-   request to finish, then report. Refuted: run `dev-ai review --model <id>` again; it sends
+   request to finish, then report; a second failed review asks for the switch of step 3 before the fix.
+   Refuted: run `dev-ai review --model <id>` again; it sends
    the reviewer your evidence, and it withdraws the finding or maintains it (confirmed: fix
    it). Never merge by hand around a refuted finding.
    `unavailable`: run it again as its message says, which names every reviewer

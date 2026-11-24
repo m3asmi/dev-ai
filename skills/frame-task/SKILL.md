@@ -17,7 +17,7 @@ Three rules hold the rest:
 
 | Source | What it changes |
 |---|---|
-| A clear, bounded request | No framing: say so and send to `/dev-ai`. A stop before every task is what dev-ai ruled out. |
+| A clear, bounded request | No framing: say so and send to `/dev-ai`. A stop before every task is what dev-ai ruled out. Seven paths or more: the split of section 4 only, then the card. |
 | A need | The goal says what "done" means. |
 | A defect found after the merge of a dev-ai task | The goal begins with `Fixes-task: <original slug>`, followed by what "done" means: this is how the twenty-task routine counts post-merge defects. Find the slug below. |
 | A review finding within the goal of the current task | No new task: it is confirmed or refuted in `/dev-ai`. Say so and stop. |
@@ -61,6 +61,7 @@ A test that only pins a text or a value, with no behaviour behind it, proves not
 
 - `--paths`: the narrowest that holds the change, the tests that prove it, and the existing tests, comments and docs that state or describe the changed behaviour: look for them before handing back the card (`rg` on the method, field or message name). On an Odoo repository, 98 of the 209 files added by `scope-add` were tests, and 5 additions only fixed comments. Leave out the configuration of the scanners and of the suite: a patch must not be able to loosen what judges it. Unless changing it is the goal of the task: the card then says so, so that the review reads it.
 - Split beyond the threshold `AGENTS.md` sets; failing that, beyond about 600 changed lines, the measure the twenty-task routine tracks. Also split when the criteria separate into behaviours that can be delivered alone. A large diff is reviewed less well, and beyond one million characters codex refuses the review. One task per piece, in dependency order: the card frames the first and names the following ones.
+- Effort: up to six paths, `medium`; seven or more, propose the split first, and `high` only if the operator keeps one task. The card's "Effort" line says which; `/dev-ai` passes the session's real effort to `start`.
 - A fix whose code also lives on another maintained branch of the repository (for example `main` and `20.0`): frame its twin task in the same message, its `start` command with `--base '<that branch>'` (without it, the task starts from the base in `dev-ai.json` or from the current branch), or say why the defect is not there. On an Odoo repository, 14 of the 89 `Fixes-task` carried a defect already fixed on the other branch.
 - Slug: lowercase letters, digits, `.`, `_` or `-`, 64 characters at most, starting with a letter or a digit.
 
@@ -107,6 +108,7 @@ Goal       <what "done" means, in one sentence>
 Criteria   1. <behaviour> → test: <what it asserts>          guaranteed
            2. <behaviour> → acceptance check: <what the operator verifies>
 Scope      <paths>
+Effort     <N> paths → medium | high
 Mandate    merge | commit
 Spec       <absolute path> | none: <why>
 Split      <following tasks, in order> | none
@@ -118,12 +120,12 @@ Goal and criteria are written in the repository's language, that of its commits:
 Then the command, which `/dev-ai` will launch:
 
 ```
-dev-ai start <slug> --goal "<goal>" --paths '<path>' ['<path>'…] --author <harness> --author-model <model> --delivery <mandate> [--spec '<absolute path>'] [--base '<branch>']
+dev-ai start <slug> --goal "<goal>" --paths '<path>' ['<path>'…] --author <harness> --author-model <model> --author-effort <effort> --delivery <mandate> [--spec '<absolute path>'] [--base '<branch>']
 ```
 
 The goal goes in double quotes: it contains no backtick, `$`, `\`, `"` or `!`, which the shell would execute or interpret there. Name the code in plain words or between apostrophes. Each path, of `--paths` as of `--spec`, and the branch of `--base` go between apostrophes: a space does not split it, and dev-ai receives a glob pattern as is, not the files it designates today.
 
-`--author` and `--author-model` are those of the session that will write the patch, not yours: leave them as `<…>`, `/dev-ai` fills them in.
+`--author`, `--author-model` and `--author-effort` are those of the session that will write the patch, not yours: leave them as `<…>`, `/dev-ai` fills them in.
 
 "Kind" exists because a drift was measured on an Odoo repository: far more proof and tooling tasks than product code. You do not judge it and you cite no figure; you fill in the line, it makes the drift visible.
 
