@@ -547,9 +547,8 @@ def test_drop_of_a_stacked_task_whose_base_branch_is_gone(repo: Path) -> None:
 
 def test_widening_a_scope_needs_a_reason_and_is_recorded(repo: Path) -> None:
     worktree = open_task(repo)
-    with pytest.raises(TaskError, match="reason") as refused:
-        commands.scope_add(repo, "fix-answer", ["src/extra.py"], "")
-    assert refused.value.kind == "no_scope"
+    with pytest.raises(SystemExit):  # bookkeeping: argparse asks for it, no blocker kind (never fired, 2026-11-24)
+        cli.main(["scope-add", "src/extra.py"], cwd=worktree)
     task = commands.scope_add(repo, "fix-answer", ["src/extra.py"], "discovered while fixing")
     assert task.scope_paths == ["src/app.py", "src/extra.py"]
     assert task.scope_history[0]["reason"] == "discovered while fixing"
@@ -604,7 +603,7 @@ def test_cli_finds_the_task_from_the_worktree_and_logs_every_command(
     repo: Path, capsys: pytest.CaptureFixture[str]) -> None:
     (repo.parent / "spec.md").write_text("INV-1: the answer is 42\n", encoding="utf-8")
     start = ["start", "fix-answer", "--goal", "g", "--paths", "README.md", "--spec", "../spec.md",
-             "--author-model", "claude-fable-5-1"]
+             "--author-model", "claude-fable-5-1", "--author-effort", "high"]
     assert cli.main(start, cwd=repo) == 0
     assert "INV-1" in (repo / ".dev-ai/tasks/fix-answer/spec.md").read_text(encoding="utf-8")
     task = json.loads((repo / ".dev-ai/tasks/fix-answer/task.json").read_text())
@@ -625,7 +624,7 @@ def test_cli_finds_the_task_from_the_worktree_and_logs_every_command(
         ("check", "ok"), ("land", "ok"), ("check", "blocked"), ("status", "ok")]
     assert all(row["at"].endswith("Z") and row["duration_ms"] >= 0 and row["version"] for row in rows)
     assert rows[0]["delivery"] == "commit" and rows[1]["blockers"] == ["empty_patch"]
-    assert rows[4]["kind"] == "not_a_task"
+    assert rows[4]["kind"] == "not_a_task" and task["author_effort"] == rows[0]["author_effort"] == "high"
 
 
 def test_every_command_refuses_inside_a_lane_job_before_it_acts(

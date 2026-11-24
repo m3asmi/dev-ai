@@ -27,7 +27,7 @@ State lives under `.dev-ai/` in the **main checkout**, excluded through
 
 | File | Written by | Holds |
 |---|---|---|
-| `tasks/<slug>/task.json` | `start`, `scope-add` | goal, `scope_paths`, base ref and sha, author and its model (a human has none), delivery mandate, worktree, scope history |
+| `tasks/<slug>/task.json` | `start`, `scope-add` | goal, `scope_paths`, base ref and sha, author and its model (a human has none), the effort it said (`--author-effort`, empty when not), delivery mandate, worktree, scope history |
 | `tasks/<slug>/spec.md` | `start --spec` | up to 80 lines of invariants and decisions, written by the operator or the harness |
 | `tasks/<slug>/check.json` | `check` | base sha (the merge-base with the base branch), patch fingerprint, changed files and those that need a review, test result with its command, blockers and their kinds, verdict |
 | `tasks/<slug>/test.log` | `check` | full output of the test command, never truncated |
@@ -36,7 +36,7 @@ State lives under `.dev-ai/` in the **main checkout**, excluded through
 | `tasks/<slug>/review.log` | `review` | every run's command line, exit, full stdout and stderr, appended |
 | `tasks/<slug>/landing.json` | `land` | head sha, fingerprint, files that needed a review, review verdict, who reviewed and the model asked for, merged |
 | `tasks/<slug>/dropped.json`, `kept/` | `drop`, `land --merge` | when, whether work that lived nowhere else was destroyed, the ignored files kept aside and the files themselves |
-| `log.jsonl` | every command | time, tool version, command, task, outcome, duration, blocker kind; for a review, its reviewer and the model asked for |
+| `log.jsonl` | every command | time, tool version, command, task, outcome, duration, blocker kind; for a start, the author's effort; for a review, its reviewer and the model asked for |
 
 `devai/review.py` is the only writer and the only reader of `review.json`: `land`
 asks it for the standing of a fingerprint. One schema, in one module.

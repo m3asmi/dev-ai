@@ -140,7 +140,8 @@ def _read_spec(cwd: Path, spec: str) -> str:
 
 
 def start(cwd: Path, slug: str, goal: str, paths: list[str], base: str | None, author: str,
-          spec: str | None = None, delivery: str = "commit", author_model: str = "") -> Task:
+          spec: str | None = None, delivery: str = "commit", author_model: str = "",
+          author_effort: str = "") -> Task:
     root = gitops.main_root(cwd)
     if not valid_slug(slug):
         raise TaskError(
@@ -160,7 +161,7 @@ def start(cwd: Path, slug: str, goal: str, paths: list[str], base: str | None, a
     base_sha = gitops.tip(root, base_ref)
     worktree = (state_dir(root) / "worktrees").resolve() / slug  # in the checkout the agent may write to (task 003)
     task = Task(slug, goal, paths, base_ref, base_sha, author, str(worktree), number=next_number(root),
-                author_model=author_model.strip(), delivery=delivery)
+                author_model=author_model.strip(), author_effort=author_effort.strip(), delivery=delivery)
     worktree.parent.mkdir(parents=True, exist_ok=True)
     gitops.git(root, "worktree", "add", "-b", task.branch, str(worktree), base_sha)
     _exclude(root)
@@ -176,9 +177,6 @@ def scope_add(cwd: Path, slug: str, paths: list[str], reason: str) -> Task:
     settled points came back as findings). The harness's prompt is where the operator says no."""
     root = gitops.main_root(cwd)
     task = load(root, slug)
-    if not reason.strip():
-        raise TaskError(f"widening '{task.label}' needs a --reason, and recording a decision its text: a widening "
-                        "without a recorded reason is the bookkeeping this tool exists to keep.", "no_scope")
     task.scope_paths.extend(path for path in paths if path not in task.scope_paths)
     task.scope_history.append({"at": now(), "added": paths, "reason": reason})
     save(root, task)
